@@ -14,7 +14,6 @@ def _dpcm_mapping(x):
 
 
 DPCM_MAP = [_dpcm_mapping(x + 0.5) for x in range(-DPCM_SIZE // 2, DPCM_SIZE // 2)]
-print(DPCM_MAP)
 
 
 def dpcm_quantize(value: int) -> int:
