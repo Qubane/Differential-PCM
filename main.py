@@ -1,13 +1,13 @@
 import wave
-import cmath
 import struct
+import argparse
 
 
 DPCM_SIZE = 16
 
 
 def _dpcm_mapping(x):
-    value = int(abs(x) * 3)
+    value = int(abs(x) * 1) + 1
     if x < 0:
         return -value
     return value
@@ -127,14 +127,49 @@ def process_audio_samples(parameters, frames):
     return struct.pack(fmt, *decoded_samples)
 
 
+def encode_wav(input_file: str, output_file: str) -> None:
+    """
+    Encodes a .wav file
+    """
+
+
+def decode_wav(input_file: str, output_file: str) -> None:
+    """
+    Decodes a .wav DPCM encoded file
+    """
+
+
 def main():
-    input_file_path = 'tests/test0__orig.wav'
-    output_file_path = 'output.wav'
+    # parse arguments
+    parser = argparse.ArgumentParser(prog="Differential PCM codec")
 
-    parameters, frames = read_wav_file(input_file_path)
+    # add arguments
+    parser.add_argument(
+        "-i", "--input",
+        help="file input",
+        required=True)
+    parser.add_argument(
+        "-o", "--output",
+        help="file output")
+    parser.add_argument(
+        "--mode",
+        help="modes of DPCM codec",
+        choices=["encode_wav", "decode_wav"],
+        required=True)
 
-    processed_frames = process_audio_samples(parameters, frames)
-    write_wav_file(output_file_path, parameters, processed_frames)
+    # parse arguments
+    args = parser.parse_args()
+
+    # make file names
+    input_file = args.input
+    output_file = args.output if args.output else "out_" + args.input
+
+    if args.mode == "encode_wav":
+        encode_wav(input_file, output_file)
+    elif args.mode == "decode_wav":
+        decode_wav(input_file, output_file)
+    else:
+        raise NotImplementedError
 
 
 if __name__ == '__main__':
