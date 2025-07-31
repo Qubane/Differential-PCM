@@ -78,19 +78,19 @@ def dpcm_decode(samples: list[int]) -> list[int]:
     return decoded_samples
 
 
-def read_wav_file(file_path):
+def read_wav_file(file_path: str):
     """
     Reads .wav file
     """
 
     with wave.open(file_path, 'rb') as wav_file:
         parameters = wav_file.getparams()
-        samples = wav_file.readframes(parameters.nframes)
+        frames = wav_file.readframes(parameters.nframes)
 
-    return parameters, samples
+    return parameters, frames
 
 
-def write_wav_file(file_path, parameters, processed_frames):
+def write_wav_file(file_path: str, parameters, processed_frames: bytes):
     """
     Write .wav file
     """
@@ -100,11 +100,12 @@ def write_wav_file(file_path, parameters, processed_frames):
         wav_file.writeframes(processed_frames)
 
 
-def process_audio_samples(parameters, frames):
+def unpack_frames(frames: bytes, parameters) -> list[int]:
     """
-    Raw file creation
+    Unpacks the raw frame bytes
     """
 
+    # figure out byte width
     if parameters.sampwidth == 1:
         byte_width = "b"
     elif parameters.sampwidth == 2:
@@ -112,25 +113,52 @@ def process_audio_samples(parameters, frames):
     else:
         raise NotImplementedError
 
+    # generate fmt
     fmt = "<" + byte_width * parameters.nframes * parameters.nchannels
 
-    # unpack samples
-    samples = list(struct.unpack(fmt, frames))
+    # return unpacked samples
+    return list(struct.unpack(fmt, frames))
 
-    # process
-    encoded_samples = dpcm_encode(samples)
-    decoded_samples = dpcm_decode(encoded_samples)
 
-    fmt = "<" + byte_width * len(decoded_samples) * parameters.nchannels
+def pack_frames(samples: list[int], parameters) -> bytes:
+    """
+    Packs samples back into raw frames
+    """
 
-    # pack
-    return struct.pack(fmt, *decoded_samples)
+    # figure out byte width
+    if parameters.sampwidth == 1:
+        byte_width = "b"
+    elif parameters.sampwidth == 2:
+        byte_width = "h"
+    else:
+        raise NotImplementedError
+
+    # generate fmt
+    fmt = "<" + byte_width * len(samples) * parameters.nchannels
+
+    # return packed samples
+    return struct.pack(fmt, *samples)
 
 
 def encode_wav(input_file: str, output_file: str) -> None:
     """
     Encodes a .wav file
     """
+
+    # read file
+    parameters, frames = read_wav_file(input_file)
+
+    # unpack samples
+    samples = unpack_frames(frames, parameters)
+
+    # encode samples
+    samples = dpcm_encode(samples)
+
+    # convert into frames
+    frames = pack_frames(samples, parameters)
+
+    # store into file
+    write_wav_file(output_file, parameters, frames)
 
 
 def decode_wav(input_file: str, output_file: str) -> None:
