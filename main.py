@@ -8,7 +8,7 @@ DPCM_SIZE = 16
 
 
 def _dpcm_mapping(x):
-    value = int(abs(x) * 6) + 1
+    value = int(abs(x) * 3)
     if x < 0:
         return -value
     return value
@@ -26,7 +26,7 @@ def dpcm_quantize(value: int) -> int:
     if value > 0:
         for idx, mapping in enumerate(DPCM_MAP[8:]):
             if value - mapping <= 0:
-                return idx
+                return idx + 8
         return len(DPCM_MAP) - 1
     else:
         for idx, mapping in enumerate(DPCM_MAP[8:]):
