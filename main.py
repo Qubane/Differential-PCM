@@ -1,7 +1,6 @@
 import wave
 import cmath
 import struct
-import matplotlib.pyplot as plt
 
 
 DPCM_SIZE = 16
@@ -121,20 +120,6 @@ def process_audio_samples(parameters, frames):
     # process
     encoded_samples = dpcm_encode(samples)
     decoded_samples = dpcm_decode(encoded_samples)
-
-    # range_start = 0
-    # range_stop = range_start + 512
-    #
-    # plt.subplot(3, 1, 1)
-    # plt.plot(samples[range_start:range_stop])
-    #
-    # plt.subplot(3, 1, 2)
-    # plt.plot(encoded_samples[range_start:range_stop])
-    #
-    # plt.subplot(3, 1, 3)
-    # plt.plot(decoded_samples[range_start:range_stop])
-    #
-    # plt.show()
 
     fmt = "<" + byte_width * len(decoded_samples) * parameters.nchannels
 
