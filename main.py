@@ -4,7 +4,7 @@ import struct
 import matplotlib.pyplot as plt
 
 
-DPCM_SIZE = 2
+DPCM_SIZE = 16
 
 
 def _dpcm_mapping(x):
