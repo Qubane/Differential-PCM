@@ -166,6 +166,21 @@ def decode_wav(input_file: str, output_file: str) -> None:
     Decodes a .wav DPCM encoded file
     """
 
+    # read file
+    parameters, frames = read_wav_file(input_file)
+
+    # unpack samples
+    samples = unpack_frames(frames, parameters)
+
+    # decode samples
+    samples = dpcm_decode(samples)
+
+    # convert into frames
+    frames = pack_frames(samples, parameters)
+
+    # store into file
+    write_wav_file(output_file, parameters, frames)
+
 
 def main():
     # parse arguments
