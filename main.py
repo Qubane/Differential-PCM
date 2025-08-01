@@ -268,6 +268,28 @@ def unpack_dpcm(packed_dpcm: bytes) -> tuple[list[int], dict[str, int]]:
     return unpacked_samples, parameters
 
 
+def split_tracks(samples: list[int], nchannels: int) -> list[list[int]]:
+    """
+    Splits single samples list into multiple tracks
+    :param samples: list of samples
+    :param nchannels: number of channels
+    """
+
+    return [samples[offset::nchannels] for offset in range(nchannels)]
+
+
+def merge_tracks(samples: list[int], tracks: list[list[int]], nchannels: int):
+    """
+    Splits single samples list into multiple tracks
+    :param samples: original samples list
+    :param tracks: list of tracks
+    :param nchannels: number of channels
+    """
+
+    for offset in range(nchannels):
+        samples[offset::nchannels] = tracks[offset]
+
+
 def encode_wav(input_file: str, output_file: str) -> None:
     """
     Encodes a .wav file
@@ -281,8 +303,15 @@ def encode_wav(input_file: str, output_file: str) -> None:
     # unpack samples
     samples = unpack_frames(frames, parameters)
 
-    # encode samples
-    samples = dpcm_encode(samples, sample_width=parameters["sampwidth"])
+    # split tracks
+    tracks = split_tracks(samples, parameters["nchannels"])
+
+    # encode tracks
+    for track_idx in range(parameters["nchannels"]):
+        tracks[track_idx] = dpcm_encode(tracks[track_idx], sample_width=parameters["sampwidth"])
+
+    # merge multiple tracks
+    merge_tracks(samples, tracks, parameters["nchannels"])
 
     # pack bytes
     packed_dpcm = pack_dpcm(samples, parameters)
@@ -306,8 +335,15 @@ def decode_wav(input_file: str, output_file: str) -> None:
     # unpack DPCM
     samples, parameters = unpack_dpcm(packed_dpcm)
 
-    # decode samples
-    samples = dpcm_decode(samples, sample_width=parameters["sampwidth"])
+    # split tracks
+    tracks = split_tracks(samples, parameters["nchannels"])
+
+    # decode tracks
+    for track_idx in range(parameters["nchannels"]):
+        tracks[track_idx] = dpcm_decode(tracks[track_idx], sample_width=parameters["sampwidth"])
+
+    # merge multiple tracks
+    merge_tracks(samples, tracks, parameters["nchannels"])
 
     # convert into frames
     frames = pack_frames(samples, parameters)
@@ -329,11 +365,16 @@ def squeeze(input_file: str, output_file: str) -> None:
     # unpack samples
     samples = unpack_frames(frames, parameters)
 
-    # encode samples
-    samples = dpcm_encode(samples, sample_width=parameters["sampwidth"])
+    # split tracks
+    tracks = split_tracks(samples, parameters["nchannels"])
 
-    # decode samples
-    samples = dpcm_decode(samples, sample_width=parameters["sampwidth"])
+    # encode & decode tracks (squeeze)
+    for track_idx in range(parameters["nchannels"]):
+        tracks[track_idx] = dpcm_encode(tracks[track_idx], sample_width=parameters["sampwidth"])
+        tracks[track_idx] = dpcm_decode(tracks[track_idx], sample_width=parameters["sampwidth"])
+
+    # merge multiple tracks
+    merge_tracks(samples, tracks, parameters["nchannels"])
 
     # convert into frames
     frames = pack_frames(samples, parameters)
