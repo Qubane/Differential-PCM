@@ -400,6 +400,11 @@ def main():
         help="modes of DPCM codec",
         choices=["encode_wav", "decode_wav", "squeeze"],
         required=True)
+    parser.add_argument(
+        "--dpcm-depth",
+        help="DPCM bit depth (1 - least quality & most compression)",
+        choices=[1, 2, 3, 4, 5, 6],
+        default=4)
 
     # parse arguments
     args = parser.parse_args()
@@ -408,6 +413,7 @@ def main():
     input_file = args.input
     output_file = args.output if args.output else "out_" + args.input
 
+    # pick mode
     if args.mode == "encode_wav":
         output_file = os.path.splitext(output_file)[0] + ".dpcm"
         encode_wav(input_file, output_file)
