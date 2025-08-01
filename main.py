@@ -4,6 +4,18 @@ import struct
 import argparse
 
 
+class DPCMCompressor:
+    """
+    Differential PCM compressor class
+    """
+
+    def __init__(self, dpcm_depth: int):
+        self.dpcm_depth: int = dpcm_depth
+        self.dpcm_size: int = 2 ** dpcm_depth
+
+        self.difference_mapping: list[float] = []
+
+
 DPCM_SIZE = 16
 
 
