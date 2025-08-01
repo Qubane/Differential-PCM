@@ -200,7 +200,7 @@ def pack_frames(samples: list[int], parameters: dict[str, int]) -> bytes:
         raise NotImplementedError
 
     # generate fmt
-    fmt = "<" + byte_width * len(samples) * parameters["nchannels"]
+    fmt = "<" + byte_width * len(samples)
 
     # return packed_dpcm samples
     return struct.pack(fmt, *samples)
