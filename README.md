@@ -4,6 +4,11 @@ Simplistic DPCM compression algorithm, with parabolic difference mapping
 # Supported file types
 - only .wav files
 
+## Supported wave files
+- supports 8 and 16 bit sample widths (although, don't expect higher quality from 16 bit, as it's treated as 8 bit)
+- supports multi-track audio
+- supports only signed audio samples
+
 # Usage
 - `py3.12 main.py -h` to get help
 - `-i` / `--input` - input `.wav` file or `.dpcm` compressed file
