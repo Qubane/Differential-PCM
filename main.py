@@ -92,6 +92,38 @@ class DPCMCompressor:
         # return encoded samples
         return encoded_samples
 
+    def dpcm_decode(self, samples: list[int], sample_width: int = 1) -> list[int]:
+        """
+        Decodes DPCM encoded samples
+        :param samples: list of DPCM encoded samples
+        :param sample_width: byte-width of each sample
+        :return: decompressed samples
+        """
+
+        # decoded samples
+        decoded_samples = []
+
+        # make sample width correction
+        sample_width_offset = 8 if sample_width == 2 else 0
+
+        # make signed correction mask
+        correction_mask = 127 if sample_width == 1 else 0
+
+        # perform DPCM decoding
+        accumulator = 0
+        for quantized_diff in samples:
+            # calculate difference
+            diff = self.difference_mapping[quantized_diff]
+
+            # add to accumulator
+            accumulator = max(min(accumulator + diff, 127), -127)
+
+            # add to decoded samples
+            decoded_samples.append((int(accumulator) ^ correction_mask) << sample_width_offset)
+
+        # return decoded samples
+        return decoded_samples
+
 
 DPCM_SIZE = 16
 
