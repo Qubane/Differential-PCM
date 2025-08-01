@@ -299,6 +299,8 @@ def encode_wav(input_file: str, output_file: str) -> None:
 def decode_wav(input_file: str, output_file: str) -> None:
     """
     Decodes a .wav DPCM encoded file
+    :param input_file: input .dpcm file
+    :param output_file: output .wav file
     """
 
     # read file
@@ -315,7 +317,7 @@ def decode_wav(input_file: str, output_file: str) -> None:
     frames = pack_frames(samples, parameters)
 
     # store into file
-    write_wav_file(output_file, parameters, frames)
+    write_wav_file(output_file, frames, parameters)
 
 
 def main():
