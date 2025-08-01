@@ -210,9 +210,11 @@ def pack_frames(samples: list[int], parameters: dict[str, int]) -> bytes:
     return struct.pack(fmt, *samples)
 
 
-def pack_dpcm(samples: list[int], parameters) -> bytes:
+def pack_dpcm(samples: list[int], parameters: dict[str, int]) -> bytes:
     """
     Packs DPCM binary
+    :param samples: samples to pack
+    :param parameters: sample parameters
     """
 
     # file format
@@ -231,9 +233,9 @@ def pack_dpcm(samples: list[int], parameters) -> bytes:
     # return packed
     return struct.pack(
         fmt,
-        parameters.sampwidth,
-        parameters.nchannels,
-        parameters.framerate,
+        parameters["sampwidth"],
+        parameters["nchannels"],
+        parameters["framerate"],
         *packed_samples)
 
 
