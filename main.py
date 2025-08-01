@@ -21,14 +21,14 @@ def dpcm_quantize(value: int) -> int:
     Quantize the value
     """
 
-    if value > 0:
-        for idx, mapping in enumerate(DPCM_MAP[8:]):
-            if value - mapping <= 0:
-                return idx + 8
-        return len(DPCM_MAP) - 1
+    if value >= 0:
+        for idx in range(DPCM_SIZE // 2, DPCM_SIZE):
+            if value - DPCM_MAP[idx] <= 0:
+                return idx
+        return DPCM_SIZE - 1
     else:
-        for idx, mapping in enumerate(DPCM_MAP[8:]):
-            if value + mapping <= 0:
+        for idx in range(DPCM_SIZE // 2 - 1, -1, -1):
+            if value - DPCM_MAP[idx] <= 0:
                 return idx
         return 0
 
@@ -39,11 +39,11 @@ def dpcm_encode(samples: list[int]) -> list[int]:
     """
 
     encoded_samples = []
-    previous_sample = samples[0]
+    previous_sample = 0
 
-    for sample in samples[1:]:
+    for sample in samples:
         # calculate difference
-        diff = sample - previous_sample
+        diff = (sample ^ 0b0111_1111) - previous_sample
 
         # map to range
         quantized_diff = dpcm_quantize(diff)
