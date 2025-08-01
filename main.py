@@ -40,6 +40,24 @@ class DPCMCompressor:
         # generate difference mapping
         self.difference_mapping = [diff_function(x + 0.5) for x in range(-self.dpcm_size // 2, self.dpcm_size // 2)]
 
+    def quantize(self, value: int) -> int:
+        """
+        Quantizes the value using the difference mapping
+        :param value: value to quantize
+        :return: integer index of quantized mapping
+        """
+
+        if value >= 0:
+            for idx in range(self.dpcm_size // 2, self.dpcm_size):
+                if value - self.difference_mapping[idx] <= 0:
+                    return idx
+            return self.dpcm_size - 1
+        else:
+            for idx in range(self.dpcm_size // 2 - 1, -1, -1):
+                if value - self.difference_mapping[idx] >= 0:
+                    return idx
+            return 0
+
 
 DPCM_SIZE = 16
 
