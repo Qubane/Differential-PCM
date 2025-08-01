@@ -96,7 +96,12 @@ def write_wav_file(file_path: str, parameters, processed_frames: bytes):
     """
 
     with wave.open(file_path, 'wb') as wav_file:
-        wav_file.setparams(parameters)
+        if isinstance(parameters, dict):
+            wav_file.setsampwidth(parameters["sampwidth"])
+            wav_file.setnchannels(parameters["nchannels"])
+            wav_file.setframerate(parameters["framerate"])
+        else:
+            wav_file.setparams(parameters)
         wav_file.writeframes(processed_frames)
 
 
@@ -125,16 +130,22 @@ def pack_frames(samples: list[int], parameters) -> bytes:
     Packs samples back into raw frames
     """
 
+    # make sure parameters is a dict
+    if not isinstance(parameters, dict):
+        parameters = {
+            "sampwidth": parameters.sampwidth,
+            "nchannels": parameters.nchannels}
+
     # figure out byte width
-    if parameters.sampwidth == 1:
+    if parameters["sampwidth"] == 1:
         byte_width = "b"
-    elif parameters.sampwidth == 2:
+    elif parameters["sampwidth"] == 2:
         byte_width = "h"
     else:
         raise NotImplementedError
 
     # generate fmt
-    fmt = "<" + byte_width * len(samples) * parameters.nchannels
+    fmt = "<" + byte_width * len(samples) * parameters["nchannels"]
 
     # return packed samples
     return struct.pack(fmt, *samples)
@@ -148,8 +159,9 @@ def pack_dpcm(samples: list[int], parameters) -> bytes:
     # file format
     # byte width
     # channel number
-    # samples
-    fmt = "<BB"
+    # framerate
+    # [samples]
+    fmt = "<BBL"
     fmt += "B" * (len(samples) // 2)
 
     # pack samples
@@ -162,7 +174,39 @@ def pack_dpcm(samples: list[int], parameters) -> bytes:
         fmt,
         parameters.sampwidth,
         parameters.nchannels,
+        parameters.framerate,
         *packed_samples)
+
+
+def unpack_dpcm(packed: bytes) -> tuple[list[int], dict[str, int]]:
+    """
+    Unpacks DPCM packed bytes
+    """
+
+    # file format
+    # sample width
+    # channel number
+    # [samples]
+    fmt = "<BBL"
+    fmt += "B" * (len(packed) - 2 - 4)
+
+    # unpack raw
+    unpacked = struct.unpack(fmt, packed)
+
+    # make parameters
+    parameters = {
+        "sampwidth": unpacked[0],
+        "nchannels": unpacked[1],
+        "framerate": unpacked[2]}
+
+    # unpack samples
+    unpacked_samples = []
+    for packed_sample in unpacked[3:]:
+        unpacked_samples.append(packed_sample >> 4)
+        unpacked_samples.append(packed_sample & 0xF)
+
+    # return unpacked
+    return unpacked_samples, parameters
 
 
 def encode_wav(input_file: str, output_file: str) -> None:
@@ -193,10 +237,11 @@ def decode_wav(input_file: str, output_file: str) -> None:
     """
 
     # read file
-    parameters, frames = read_wav_file(input_file)
+    with open(input_file, "rb") as file:
+        packed_dpcm = file.read()
 
-    # unpack samples
-    samples = unpack_frames(frames, parameters)
+    # unpack DPCM
+    samples, parameters = unpack_dpcm(packed_dpcm)
 
     # decode samples
     samples = dpcm_decode(samples)
