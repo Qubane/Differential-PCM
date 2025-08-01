@@ -119,31 +119,51 @@ def dpcm_decode(samples: list[int], sample_width: int = 1, signed: bool = True) 
     return decoded_samples
 
 
-def read_wav_file(file_path: str):
+def make_wave_parameters(parameters) -> dict[str, int]:
+    """
+    Makes parameters from "wave._wave_params" class that is not type hintable
+    """
+
+    # return essential parameters
+    return {
+        "sampwidth": parameters.sampwidth,
+        "nchannels": parameters.nchannels,
+        "framerate": parameters.framerate,
+        "nframes": parameters.nframes}
+
+
+def read_wav_file(file_path: str) -> tuple[bytes, dict[str, int]]:
     """
     Reads .wav file
+    :param file_path: path to file
     """
 
+    # read file
     with wave.open(file_path, 'rb') as wav_file:
-        parameters = wav_file.getparams()
-        frames = wav_file.readframes(parameters.nframes)
+        parameters = make_wave_parameters(wav_file.getparams())
+        frames = wav_file.readframes(parameters["nframes"])
 
-    return parameters, frames
+    # output data
+    return frames, parameters
 
 
-def write_wav_file(file_path: str, parameters, processed_frames: bytes):
+def write_wav_file(file_path: str, frames: bytes, parameters: dict[str, int]):
     """
     Write .wav file
+    :param file_path: path to file
+    :param frames: frames to write
+    :param parameters: wave file parameters
     """
 
+    # write file
     with wave.open(file_path, 'wb') as wav_file:
-        if isinstance(parameters, dict):
-            wav_file.setsampwidth(parameters["sampwidth"])
-            wav_file.setnchannels(parameters["nchannels"])
-            wav_file.setframerate(parameters["framerate"])
-        else:
-            wav_file.setparams(parameters)
-        wav_file.writeframes(processed_frames)
+        # write parameters
+        wav_file.setsampwidth(parameters["sampwidth"])
+        wav_file.setnchannels(parameters["nchannels"])
+        wav_file.setframerate(parameters["framerate"])
+
+        # write frames
+        wav_file.writeframes(frames)
 
 
 def unpack_frames(frames: bytes, parameters) -> list[int]:
