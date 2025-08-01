@@ -8,12 +8,20 @@ DPCM_SIZE = 16
 
 
 def _dpcm_mapping(x):
+    """
+    Generates DPCM mapping
+    """
+
+    # mapping type
     value = int(abs(x) ** 2) + 1
+
+    # keep the sign
     if x < 0:
         return -value
     return value
 
 
+# DPCM mapping
 DPCM_MAP = [_dpcm_mapping(x + 0.5) for x in range(-DPCM_SIZE // 2, DPCM_SIZE // 2)]
 
 
@@ -22,11 +30,14 @@ def dpcm_quantize(value: int) -> int:
     Quantize the value
     """
 
+    # for positive values
     if value >= 0:
         for idx in range(DPCM_SIZE // 2, DPCM_SIZE):
             if value - DPCM_MAP[idx] <= 0:
                 return idx
         return DPCM_SIZE - 1
+
+    # for negative values
     else:
         for idx in range(DPCM_SIZE // 2 - 1, -1, -1):
             if value - DPCM_MAP[idx] >= 0:
@@ -34,17 +45,29 @@ def dpcm_quantize(value: int) -> int:
         return 0
 
 
-def dpcm_encode(samples: list[int]) -> list[int]:
+def dpcm_encode(samples: list[int], sample_width: int = 1, signed: bool = True) -> list[int]:
     """
     Encodes samples using DPCM
+    :param samples: list of integer samples
+    :param sample_width: byte-width of each sample
+    :param signed: are the samples signed integers
+    :return: 4 bit DPCM compressed samples
     """
 
+    # encoded samples
     encoded_samples = []
-    previous_sample = 0
 
+    # make signed correction mask
+    if not signed:
+        correction_mask = 0
+    else:
+        correction_mask = (2 ** (8 * sample_width) - 1) >> 1
+
+    # perform DPCM
+    accumulator = 0
     for sample in samples:
         # calculate difference
-        diff = (sample ^ 0b0111_1111) - previous_sample
+        diff = (sample ^ correction_mask) - accumulator
 
         # map to range
         quantized_diff = dpcm_quantize(diff)
@@ -52,12 +75,13 @@ def dpcm_encode(samples: list[int]) -> list[int]:
         # append to encoded samples
         encoded_samples.append(quantized_diff)
 
-        previous_sample += DPCM_MAP[quantized_diff]
+        accumulator += DPCM_MAP[quantized_diff]
 
+    # return encoded samples
     return encoded_samples
 
 
-def dpcm_decode(samples: list[int]) -> list[int]:
+def dpcm_decode(samples: list[int], sample_width: int = 8) -> list[int]:
     """
     Decodes DPCM encoded samples
     """
