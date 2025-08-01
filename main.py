@@ -1,3 +1,4 @@
+import os
 import wave
 import struct
 import argparse
@@ -139,6 +140,31 @@ def pack_frames(samples: list[int], parameters) -> bytes:
     return struct.pack(fmt, *samples)
 
 
+def pack_dpcm(samples: list[int], parameters) -> bytes:
+    """
+    Packs DPCM binary
+    """
+
+    # file format
+    # byte width
+    # channel number
+    # samples
+    fmt = "<BB"
+    fmt += "B" * (len(samples) // 2)
+
+    # pack samples
+    packed_samples = []
+    for idx in range(0, len(samples) - 1, 2):
+        packed_samples.append((samples[idx] << 4) + samples[idx + 1])
+
+    # return packed
+    return struct.pack(
+        fmt,
+        parameters.sampwidth,
+        parameters.nchannels,
+        *packed_samples)
+
+
 def encode_wav(input_file: str, output_file: str) -> None:
     """
     Encodes a .wav file
@@ -153,11 +179,12 @@ def encode_wav(input_file: str, output_file: str) -> None:
     # encode samples
     samples = dpcm_encode(samples)
 
-    # convert into frames
-    frames = pack_frames(samples, parameters)
+    # pack bytes
+    packed_dpcm = pack_dpcm(samples, parameters)
 
     # store into file
-    write_wav_file(output_file, parameters, frames)
+    with open(output_file, "wb") as file:
+        file.write(packed_dpcm)
 
 
 def decode_wav(input_file: str, output_file: str) -> None:
@@ -207,6 +234,7 @@ def main():
     output_file = args.output if args.output else "out_" + args.input
 
     if args.mode == "encode_wav":
+        output_file = os.path.splitext(output_file)[0] + ".dpcm"
         encode_wav(input_file, output_file)
     elif args.mode == "decode_wav":
         decode_wav(input_file, output_file)
