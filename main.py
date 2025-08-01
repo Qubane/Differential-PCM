@@ -166,21 +166,23 @@ def write_wav_file(file_path: str, frames: bytes, parameters: dict[str, int]):
         wav_file.writeframes(frames)
 
 
-def unpack_frames(frames: bytes, parameters) -> list[int]:
+def unpack_frames(frames: bytes, parameters: dict[str, int]) -> list[int]:
     """
     Unpacks the raw frame bytes
+    :param frames: frames to unpack
+    :param parameters: sample parameters
     """
 
     # figure out byte width
-    if parameters.sampwidth == 1:
+    if parameters["sampwidth"] == 1:
         byte_width = "b"
-    elif parameters.sampwidth == 2:
+    elif parameters["sampwidth"] == 2:
         byte_width = "h"
     else:
         raise NotImplementedError
 
     # generate fmt
-    fmt = "<" + byte_width * parameters.nframes * parameters.nchannels
+    fmt = "<" + byte_width * parameters["nframes"] * parameters["nchannels"]
 
     # return unpacked samples
     return list(struct.unpack(fmt, frames))
