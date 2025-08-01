@@ -206,7 +206,7 @@ def pack_frames(samples: list[int], parameters: dict[str, int]) -> bytes:
     # generate fmt
     fmt = "<" + byte_width * len(samples) * parameters["nchannels"]
 
-    # return packed samples
+    # return packed_dpcm samples
     return struct.pack(fmt, *samples)
 
 
@@ -230,7 +230,7 @@ def pack_dpcm(samples: list[int], parameters: dict[str, int]) -> bytes:
     for idx in range(0, len(samples) - 1, 2):
         packed_samples.append((samples[idx] << 4) + samples[idx + 1])
 
-    # return packed
+    # return packed_dpcm
     return struct.pack(
         fmt,
         parameters["sampwidth"],
@@ -239,9 +239,11 @@ def pack_dpcm(samples: list[int], parameters: dict[str, int]) -> bytes:
         *packed_samples)
 
 
-def unpack_dpcm(packed: bytes) -> tuple[list[int], dict[str, int]]:
+def unpack_dpcm(packed_dpcm: bytes) -> tuple[list[int], dict[str, int]]:
     """
     Unpacks DPCM packed bytes
+    :param packed_dpcm: packed DPCM compressed data
+    :return: tuple of samples and sample parameters
     """
 
     # file format
@@ -249,10 +251,10 @@ def unpack_dpcm(packed: bytes) -> tuple[list[int], dict[str, int]]:
     # channel number
     # [samples]
     fmt = "<BBL"
-    fmt += "B" * (len(packed) - 2 - 4)
+    fmt += "B" * (len(packed_dpcm) - 2 - 4)
 
     # unpack raw
-    unpacked = struct.unpack(fmt, packed)
+    unpacked = struct.unpack(fmt, packed_dpcm)
 
     # make parameters
     parameters = {
