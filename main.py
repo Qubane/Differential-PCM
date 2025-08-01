@@ -320,6 +320,32 @@ def decode_wav(input_file: str, output_file: str) -> None:
     write_wav_file(output_file, frames, parameters)
 
 
+def squeeze(input_file: str, output_file: str) -> None:
+    """
+    Compresses and then decompresses the file, essentially just making quality worse
+    :param input_file: input .wav file
+    :param output_file: output .wav file
+    """
+
+    # read file
+    frames, parameters = read_wav_file(input_file)
+
+    # unpack samples
+    samples = unpack_frames(frames, parameters)
+
+    # encode samples
+    samples = dpcm_encode(samples)
+
+    # decode samples
+    samples = dpcm_decode(samples)
+
+    # convert into frames
+    frames = pack_frames(samples, parameters)
+
+    # store into file
+    write_wav_file(output_file, frames, parameters)
+
+
 def main():
     # parse arguments
     parser = argparse.ArgumentParser(prog="Differential PCM codec")
@@ -335,7 +361,7 @@ def main():
     parser.add_argument(
         "--mode",
         help="modes of DPCM codec",
-        choices=["encode_wav", "decode_wav"],
+        choices=["encode_wav", "decode_wav", "squeeze"],
         required=True)
 
     # parse arguments
@@ -350,6 +376,8 @@ def main():
         encode_wav(input_file, output_file)
     elif args.mode == "decode_wav":
         decode_wav(input_file, output_file)
+    elif args.mode == "squeeze":
+        squeeze(input_file, output_file)
     else:
         raise NotImplementedError
 
