@@ -188,16 +188,12 @@ def unpack_frames(frames: bytes, parameters: dict[str, int]) -> list[int]:
     return list(struct.unpack(fmt, frames))
 
 
-def pack_frames(samples: list[int], parameters) -> bytes:
+def pack_frames(samples: list[int], parameters: dict[str, int]) -> bytes:
     """
     Packs samples back into raw frames
+    :param samples: samples to pack
+    :param parameters: sample parameters
     """
-
-    # make sure parameters is a dict
-    if not isinstance(parameters, dict):
-        parameters = {
-            "sampwidth": parameters.sampwidth,
-            "nchannels": parameters.nchannels}
 
     # figure out byte width
     if parameters["sampwidth"] == 1:
