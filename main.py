@@ -14,6 +14,31 @@ class DPCMCompressor:
         self.dpcm_size: int = 2 ** dpcm_depth
 
         self.difference_mapping: list[float] = []
+        self._make_mapping()
+
+    def _make_mapping(self):
+        """
+        Generates a difference mapping for compressor
+        """
+
+        # functions were picked based on "good vibes"
+        if self.dpcm_depth == 1:
+            diff_function = lambda x: abs(x) * 10
+        elif self.dpcm_depth == 2:
+            diff_function = lambda x: abs(x) ** 4 + 4
+        elif self.dpcm_depth == 3:
+            diff_function = lambda x: abs(x) ** 2.5 + 1.5
+        elif self.dpcm_depth == 4:
+            diff_function = lambda x: abs(x) ** 2 + 1
+        elif self.dpcm_depth == 5:
+            diff_function = lambda x: abs(x) ** 2 / 4 + 1
+        elif self.dpcm_depth == 6:
+            diff_function = lambda x: abs(x) ** 2 / 16 + 1
+        else:
+            diff_function = lambda x: abs(x) + 1
+
+        # generate difference mapping
+        self.difference_mapping = [diff_function(x + 0.5) for x in range(-self.dpcm_size // 2, self.dpcm_size // 2)]
 
 
 DPCM_SIZE = 16
@@ -35,6 +60,7 @@ def _dpcm_mapping(x):
 
 # DPCM mapping
 DPCM_MAP = [_dpcm_mapping(x + 0.5) for x in range(-DPCM_SIZE // 2, DPCM_SIZE // 2)]
+print(DPCM_MAP)
 
 
 def dpcm_quantize(value: int) -> int:
@@ -121,7 +147,7 @@ def dpcm_decode(samples: list[int], sample_width: int = 1) -> list[int]:
         accumulator = max(min(accumulator + diff, 127), -127)
 
         # add to decoded samples
-        decoded_samples.append((accumulator ^ correction_mask) << sample_width_offset)
+        decoded_samples.append((int(accumulator) ^ correction_mask) << sample_width_offset)
 
     # return decoded samples
     return decoded_samples
