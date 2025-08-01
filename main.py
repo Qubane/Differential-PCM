@@ -58,6 +58,40 @@ class DPCMCompressor:
                     return idx
             return 0
 
+    def encode(self, samples: list[int], sample_width: int = 1) -> list[int]:
+        """
+        Encodes samples using DPCM
+        :param samples: list of integer samples
+        :param sample_width: byte-width of each sample
+        :return: 4 bit DPCM compressed samples
+        """
+
+        # encoded samples
+        encoded_samples = []
+
+        # make sample width correction
+        sample_width_offset = 8 if sample_width == 2 else 0
+
+        # make signed correction mask
+        correction_mask = 127 if sample_width == 1 else 0
+
+        # perform DPCM
+        accumulator = 0
+        for sample in samples:
+            # calculate difference
+            diff = ((sample >> sample_width_offset) ^ correction_mask) - accumulator
+
+            # map to range
+            quantized_diff = self.quantize(diff)
+
+            # append to encoded samples
+            encoded_samples.append(quantized_diff)
+
+            accumulator += self.difference_mapping[quantized_diff]
+
+        # return encoded samples
+        return encoded_samples
+
 
 DPCM_SIZE = 16
 
