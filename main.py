@@ -81,24 +81,41 @@ def dpcm_encode(samples: list[int], sample_width: int = 1, signed: bool = True) 
     return encoded_samples
 
 
-def dpcm_decode(samples: list[int], sample_width: int = 8) -> list[int]:
+def dpcm_decode(samples: list[int], sample_width: int = 1, signed: bool = True) -> list[int]:
     """
     Decodes DPCM encoded samples
+    :param samples: list of DPCM encoded samples
+    :param sample_width: byte-width of each sample
+    :param signed: are the samples signed integers
+    :return: decompressed samples
     """
 
+    # decoded samples
     decoded_samples = []
 
+    # make signed correction mask
+    if not signed:
+        correction_mask = 0
+    else:
+        correction_mask = (2 ** (8 * sample_width) - 1) >> 1
+
+    # make integer start and stop ranges
+    int_start = correction_mask if signed else 0
+    int_stop = -(correction_mask + 1) if signed else ((correction_mask << 1) + 1)
+
+    # perform DPCM decoding
     accumulator = 0
     for quantized_diff in samples:
         # calculate difference
         diff = DPCM_MAP[quantized_diff]
 
         # add to accumulator
-        accumulator = max(min(accumulator + diff, 127), -128)
+        accumulator = max(min(accumulator + diff, int_start), int_stop)
 
         # add to decoded samples
-        decoded_samples.append(int(accumulator) ^ 0b0111_1111)
+        decoded_samples.append(int(accumulator) ^ correction_mask)
 
+    # return decoded samples
     return decoded_samples
 
 
