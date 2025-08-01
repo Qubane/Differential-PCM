@@ -45,7 +45,7 @@ def dpcm_quantize(value: int) -> int:
         return 0
 
 
-def dpcm_encode(samples: list[int], sample_width: int = 1, signed: bool = True) -> list[int]:
+def dpcm_encode(samples: list[int], sample_width: int = 1) -> list[int]:
     """
     Encodes samples using DPCM
     :param samples: list of integer samples
@@ -61,7 +61,7 @@ def dpcm_encode(samples: list[int], sample_width: int = 1, signed: bool = True) 
     sample_width_offset = 8 if sample_width == 2 else 0
 
     # make signed correction mask
-    correction_mask = 127 if signed and sample_width == 1 else 0
+    correction_mask = 127 if sample_width == 1 else 0
 
     # perform DPCM
     accumulator = 0
@@ -81,7 +81,7 @@ def dpcm_encode(samples: list[int], sample_width: int = 1, signed: bool = True) 
     return encoded_samples
 
 
-def dpcm_decode(samples: list[int], sample_width: int = 1, signed: bool = True) -> list[int]:
+def dpcm_decode(samples: list[int], sample_width: int = 1) -> list[int]:
     """
     Decodes DPCM encoded samples
     :param samples: list of DPCM encoded samples
@@ -96,12 +96,8 @@ def dpcm_decode(samples: list[int], sample_width: int = 1, signed: bool = True) 
     # make sample width correction
     sample_width_offset = 8 if sample_width == 2 else 0
 
-    # make integer max and min ranges
-    int_max = 127 if signed else 255
-    int_min = -128 if signed else 0
-
     # make signed correction mask
-    correction_mask = 127 if signed and sample_width == 1 else 0
+    correction_mask = 127 if sample_width == 1 else 0
 
     # perform DPCM decoding
     accumulator = 0
@@ -110,7 +106,7 @@ def dpcm_decode(samples: list[int], sample_width: int = 1, signed: bool = True) 
         diff = DPCM_MAP[quantized_diff]
 
         # add to accumulator
-        accumulator = max(min(accumulator + diff, int_max), int_min)
+        accumulator = max(min(accumulator + diff, 127), -127)
 
         # add to decoded samples
         decoded_samples.append((accumulator ^ correction_mask) << sample_width_offset)
