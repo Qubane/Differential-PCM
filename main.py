@@ -275,10 +275,12 @@ def unpack_dpcm(packed_dpcm: bytes) -> tuple[list[int], dict[str, int]]:
 def encode_wav(input_file: str, output_file: str) -> None:
     """
     Encodes a .wav file
+    :param input_file: input .wav file
+    :param output_file: output .dpcm file
     """
 
     # read file
-    parameters, frames = read_wav_file(input_file)
+    frames, parameters = read_wav_file(input_file)
 
     # unpack samples
     samples = unpack_frames(frames, parameters)
