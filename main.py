@@ -334,10 +334,10 @@ def squeeze(input_file: str, output_file: str) -> None:
     samples = unpack_frames(frames, parameters)
 
     # encode samples
-    samples = dpcm_encode(samples)
+    samples = dpcm_encode(samples, sample_width=parameters["sampwidth"])
 
     # decode samples
-    samples = dpcm_decode(samples)
+    samples = dpcm_decode(samples, sample_width=parameters["sampwidth"])
 
     # convert into frames
     frames = pack_frames(samples, parameters)
