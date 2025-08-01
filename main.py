@@ -99,9 +99,9 @@ def dpcm_decode(samples: list[int], sample_width: int = 1, signed: bool = True) 
     else:
         correction_mask = (2 ** (8 * sample_width) - 1) >> 1
 
-    # make integer start and stop ranges
-    int_start = correction_mask if signed else 0
-    int_stop = -(correction_mask + 1) if signed else ((correction_mask << 1) + 1)
+    # make integer max and min ranges
+    int_max = correction_mask if signed else (2 ** (8 * sample_width) - 1)
+    int_min = -(correction_mask + 1) if signed else 0
 
     # perform DPCM decoding
     accumulator = 0
@@ -110,7 +110,7 @@ def dpcm_decode(samples: list[int], sample_width: int = 1, signed: bool = True) 
         diff = DPCM_MAP[quantized_diff]
 
         # add to accumulator
-        accumulator = max(min(accumulator + diff, int_start), int_stop)
+        accumulator = max(min(accumulator + diff, int_max), int_min)
 
         # add to decoded samples
         decoded_samples.append(int(accumulator) ^ correction_mask)
