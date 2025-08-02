@@ -330,6 +330,7 @@ class Application:
         self.parser_input_file: str = ""
         self.parser_output_file: str = ""
         self.parser_dpcm_depth: int = 0
+        self.parser_mode: str = ""
 
     def parser_args(self):
         """
@@ -374,13 +375,24 @@ class Application:
         # parse args
         self.parser_args()
 
+        # pick mode
+        if self.parser_mode == "encode_wav":
+            self.parser_output_file = os.path.splitext(self.parser_output_file)[0] + ".dpcm"
+            self.encode_wav()
+        elif self.parser_mode == "decode_wav":
+            self.decode_wav()
+        elif self.parser_mode == "squeeze":
+            self.squeeze()
+        else:
+            raise NotImplementedError
+
     def encode_wav(self) -> None:
         """
         Encodes a .wav file
         """
 
         # read file
-        frames, parameters = read_wav_file(input_file)
+        frames, parameters = read_wav_file(self.parser_input_file)
 
         # unpack samples
         samples = unpack_frames(frames, parameters)
@@ -399,7 +411,7 @@ class Application:
         packed_dpcm = pack_dpcm(samples, parameters)
 
         # store into file
-        with open(output_file, "wb") as file:
+        with open(self.parser_output_file, "wb") as file:
             file.write(packed_dpcm)
 
     def decode_wav(self) -> None:
@@ -408,7 +420,7 @@ class Application:
         """
 
         # read file
-        with open(input_file, "rb") as file:
+        with open(self.parser_input_file, "rb") as file:
             packed_dpcm = file.read()
 
         # unpack DPCM
@@ -428,7 +440,7 @@ class Application:
         frames = pack_frames(samples, parameters)
 
         # store into file
-        write_wav_file(output_file, frames, parameters)
+        write_wav_file(self.parser_output_file, frames, parameters)
 
     def squeeze(self) -> None:
         """
@@ -436,7 +448,7 @@ class Application:
         """
 
         # read file
-        frames, parameters = read_wav_file(input_file)
+        frames, parameters = read_wav_file(self.parser_input_file)
 
         # unpack samples
         samples = unpack_frames(frames, parameters)
@@ -456,23 +468,12 @@ class Application:
         frames = pack_frames(samples, parameters)
 
         # store into file
-        write_wav_file(output_file, frames, parameters)
+        write_wav_file(self.parser_output_file, frames, parameters)
 
 
 def main():
     app = Application()
     app.run()
-
-    # pick mode
-    if args.mode == "encode_wav":
-        output_file = os.path.splitext(output_file)[0] + ".dpcm"
-        encode_wav(input_file, output_file)
-    elif args.mode == "decode_wav":
-        decode_wav(input_file, output_file)
-    elif args.mode == "squeeze":
-        squeeze(input_file, output_file)
-    else:
-        raise NotImplementedError
 
 
 if __name__ == '__main__':
