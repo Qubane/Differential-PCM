@@ -205,34 +205,24 @@ class DPCMCompressor:
         # return encoded samples
         return encoded_samples
 
-    def decode(self, samples: list[int], sample_width: int = 1) -> list[int]:
+    def decode(self, samples: np.ndarray) -> np.ndarray:
         """
         Decodes DPCM encoded samples
         :param samples: list of DPCM encoded samples
-        :param sample_width: byte-width of each sample
         :return: decompressed samples
         """
 
         # decoded samples
-        decoded_samples = []
-
-        # make sample width correction
-        sample_width_offset = 8 if sample_width == 2 else 0
-
-        # make signed correction mask
-        correction_mask = 127 if sample_width == 1 else 0
+        decoded_samples = np.zeros(samples.shape, dtype=np.int32)
 
         # perform DPCM decoding
         accumulator = 0
-        for quantized_diff in samples:
-            # calculate difference
-            diff = self.difference_mapping[quantized_diff]
-
+        for idx, diff in enumerate(samples):
             # add to accumulator
-            accumulator = max(min(accumulator + diff, 127), -127)
+            accumulator = max(min(accumulator + diff, 2**31 - 1), -2**31)
 
             # add to decoded samples
-            decoded_samples.append((int(accumulator) ^ correction_mask) << sample_width_offset)
+            decoded_samples[idx] = accumulator
 
         # return decoded samples
         return decoded_samples
@@ -511,7 +501,7 @@ def main():
 
     import matplotlib.pyplot as plt
 
-    plot_start = 0
+    plot_start = 32
     plot_end = plot_start + 128
 
     compressor = DPCMCompressor(4)
@@ -526,17 +516,29 @@ def main():
     if parameters["sampwidth"] == 1:
         samples ^= 127
 
-    plt.subplot(3, 1, 1)
+    # encoding
+    plt.subplot(5, 1, 1)
     plt.plot(samples[plot_start:plot_end])
 
     samples = compressor.encode(samples)
 
-    plt.subplot(3, 1, 2)
+    plt.subplot(5, 1, 2)
     plt.plot(samples[plot_start:plot_end])
 
     samples = compressor.encode(samples)
 
-    plt.subplot(3, 1, 3)
+    plt.subplot(5, 1, 3)
+    plt.plot(samples[plot_start:plot_end])
+
+    # decoding
+    samples = compressor.decode(samples)
+
+    plt.subplot(5, 1, 4)
+    plt.plot(samples[plot_start:plot_end])
+
+    samples = compressor.decode(samples)
+
+    plt.subplot(5, 1, 5)
     plt.plot(samples[plot_start:plot_end])
 
     plt.show()
