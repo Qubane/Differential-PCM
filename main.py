@@ -86,7 +86,7 @@ class DPCMCompressor:
         # return encoded samples
         return encoded_samples
 
-    def dpcm_decode(self, samples: list[int], sample_width: int = 1) -> list[int]:
+    def decode(self, samples: list[int], sample_width: int = 1) -> list[int]:
         """
         Decodes DPCM encoded samples
         :param samples: list of DPCM encoded samples
@@ -332,6 +332,8 @@ class Application:
         self.parser_dpcm_depth: int = 0
         self.parser_mode: str = ""
 
+        self.compressor: DPCMCompressor | None = None
+
     def parser_args(self):
         """
         Parses CLI arguments
@@ -386,6 +388,9 @@ class Application:
         else:
             raise NotImplementedError
 
+        # compressor
+        self.compressor = DPCMCompressor(dpcm_depth=self.parser_dpcm_depth)
+
     def encode_wav(self) -> None:
         """
         Encodes a .wav file
@@ -402,13 +407,13 @@ class Application:
 
         # encode tracks
         for track_idx in range(parameters["nchannels"]):
-            tracks[track_idx] = dpcm_encode(tracks[track_idx], sample_width=parameters["sampwidth"])
+            tracks[track_idx] = self.compressor.encode(tracks[track_idx], sample_width=parameters["sampwidth"])
 
         # merge multiple tracks
         merge_tracks(samples, tracks, parameters["nchannels"])
 
         # pack bytes
-        packed_dpcm = pack_dpcm(samples, parameters)
+        packed_dpcm = self.compressor.pack_dpcm(samples, parameters)
 
         # store into file
         with open(self.parser_output_file, "wb") as file:
@@ -424,14 +429,14 @@ class Application:
             packed_dpcm = file.read()
 
         # unpack DPCM
-        samples, parameters = unpack_dpcm(packed_dpcm)
+        samples, parameters = self.compressor.unpack_dpcm(packed_dpcm)
 
         # split tracks
         tracks = split_tracks(samples, parameters["nchannels"])
 
         # decode tracks
         for track_idx in range(parameters["nchannels"]):
-            tracks[track_idx] = dpcm_decode(tracks[track_idx], sample_width=parameters["sampwidth"])
+            tracks[track_idx] = self.compressor.decode(tracks[track_idx], sample_width=parameters["sampwidth"])
 
         # merge multiple tracks
         merge_tracks(samples, tracks, parameters["nchannels"])
@@ -458,8 +463,8 @@ class Application:
 
         # encode & decode tracks (squeeze)
         for track_idx in range(parameters["nchannels"]):
-            tracks[track_idx] = dpcm_encode(tracks[track_idx], sample_width=parameters["sampwidth"])
-            tracks[track_idx] = dpcm_decode(tracks[track_idx], sample_width=parameters["sampwidth"])
+            tracks[track_idx] = self.compressor.encode(tracks[track_idx], sample_width=parameters["sampwidth"])
+            tracks[track_idx] = self.compressor.decode(tracks[track_idx], sample_width=parameters["sampwidth"])
 
         # merge multiple tracks
         merge_tracks(samples, tracks, parameters["nchannels"])
