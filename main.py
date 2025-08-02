@@ -26,16 +26,10 @@ class DPCMCompressor:
             diff_function = lambda x: abs(x) * 10
         elif self.dpcm_depth == 2:
             diff_function = lambda x: abs(x) ** 4 + 4
-        elif self.dpcm_depth == 3:
-            diff_function = lambda x: abs(x) ** 2.5 + 1.5
         elif self.dpcm_depth == 4:
             diff_function = lambda x: abs(x) ** 2 + 1
-        elif self.dpcm_depth == 5:
-            diff_function = lambda x: abs(x) ** 2 / 4 + 1
-        elif self.dpcm_depth == 6:
-            diff_function = lambda x: abs(x) ** 2 / 16 + 1
         else:
-            diff_function = lambda x: abs(x) + 1
+            raise NotImplementedError
 
         # generate difference mapping
         self.difference_mapping = [diff_function(x + 0.5) for x in range(-self.dpcm_size // 2, self.dpcm_size // 2)]
@@ -123,6 +117,45 @@ class DPCMCompressor:
 
         # return decoded samples
         return decoded_samples
+
+    def pack_dpcm(self, samples: list[int], parameters: dict[str, int]) -> bytes:
+        """
+        Packs DPCM encoded samples into bytes
+        :param samples: dpcm encoded samples
+        :param parameters: sample parameters
+        """
+
+        # file format
+        # byte width
+        # channel number
+        # framerate
+        # [samples]
+        fmt = "<BBL"
+
+        offset = 8 // self.dpcm_size
+        fmt += "b" * (len(samples) // offset)
+
+        # pack samples
+        packed_samples = []
+        for idx in range(0, len(samples) - 1, offset):
+            if self.dpcm_size == 1:
+                acc = sum([samples[idx + x] << (offset - x - 1) for x in range(offset)])
+                packed_samples.append(acc)
+            elif self.dpcm_size == 2:
+                packed_samples.append(
+                    (samples[idx] << 6) + (samples[idx + 1] << 4) + (samples[idx + 2] << 2) + samples[idx + 3])
+            elif self.dpcm_size == 4:
+                packed_samples.append((samples[idx] << 4) + samples[idx + 1])
+            else:
+                raise NotImplementedError
+
+        # return packet
+        return struct.pack(
+            fmt,
+            parameters["sampwidth"],
+            parameters["nchannels"],
+            parameters["framerate"],
+            *packed_samples)
 
 
 def make_wave_parameters(parameters) -> dict[str, int]:
@@ -413,7 +446,7 @@ def main():
     parser.add_argument(
         "--dpcm-depth",
         help="DPCM bit depth (1 - least quality & most compression)",
-        choices=[1, 2, 3, 4, 5, 6],
+        choices=[1, 2, 4],
         default=4)
 
     # parse arguments
