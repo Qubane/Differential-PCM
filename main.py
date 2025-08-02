@@ -368,6 +368,7 @@ class Application:
         self.parser_input_file = args.input
         self.parser_output_file = args.output if args.output else "out_" + args.input
         self.parser_dpcm_depth = args.dpcm_depth
+        self.parser_mode = args.mode
 
     def run(self):
         """
@@ -376,6 +377,9 @@ class Application:
 
         # parse args
         self.parser_args()
+
+        # compressor
+        self.compressor = DPCMCompressor(dpcm_depth=self.parser_dpcm_depth)
 
         # pick mode
         if self.parser_mode == "encode_wav":
@@ -387,9 +391,6 @@ class Application:
             self.squeeze()
         else:
             raise NotImplementedError
-
-        # compressor
-        self.compressor = DPCMCompressor(dpcm_depth=self.parser_dpcm_depth)
 
     def encode_wav(self) -> None:
         """
