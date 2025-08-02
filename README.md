@@ -17,3 +17,4 @@ Simplistic DPCM compression algorithm, with parabolic difference mapping
   - `encode_wav` - encodes `.wav` to `.dpcm`
   - `decode_wav` - decodes `.dpcm` to `.wav`
   - `squezee` - encodes and then decodes `.wav` file. Used for quality preview
+- `--dpcm-depth` - compression bit depth, 1 makes worst quality at 1/8th file size, 4 makes "best" quality at 1/2 file size
