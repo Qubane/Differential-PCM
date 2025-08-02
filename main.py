@@ -2,6 +2,7 @@ import os
 import wave
 import struct
 import argparse
+import numpy as np
 
 
 def make_wave_parameters(parameters) -> dict[str, int]:
@@ -123,11 +124,14 @@ class DPCMCompressor:
     """
 
     def __init__(self, dpcm_depth: int):
-        self.dpcm_depth: int = dpcm_depth
-        self.dpcm_size: int = 2 ** dpcm_depth
+        self.dpcm_depth: int = 0
+        self.dpcm_size: int = 0
 
-        self.difference_mapping: list[float] = []
-        self._make_mapping()
+        # difference mapping
+        self.difference_mapping: np.ndarray | None = None
+
+        # update dpcm depth
+        self._set_dpcm(dpcm_depth)
 
     def _set_dpcm(self, depth: int):
         """
@@ -148,15 +152,15 @@ class DPCMCompressor:
         if self.dpcm_depth == 1:
             diff_function = lambda x: abs(x) * 16
         elif self.dpcm_depth == 2:
-            diff_function = lambda x: abs(x) ** 4 + 4
+            diff_function = lambda x: (abs(x) ** 4 + 4) * np.sign(x)
         elif self.dpcm_depth == 4:
-            diff_function = lambda x: abs(x) ** 2 + 1
+            diff_function = lambda x: (abs(x) ** 2 + 1) * np.sign(x)
         else:
             raise NotImplementedError
 
         # generate difference mapping
-        self.difference_mapping = [diff_function(x + 0.5) for x in range(-self.dpcm_size // 2, self.dpcm_size // 2)]
-        self.difference_mapping[:self.dpcm_size // 2] = map(lambda x: -x, self.difference_mapping[:self.dpcm_size // 2])
+        self.difference_mapping = np.arange(-self.dpcm_size / 2, self.dpcm_size / 2) + 0.5
+        self.difference_mapping = np.vectorize(diff_function)(self.difference_mapping)
 
     def quantize(self, value: int) -> int:
         """
