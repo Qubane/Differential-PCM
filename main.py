@@ -246,19 +246,19 @@ class DPCMCompressor:
         # [samples]
         fmt = "<BBL"
 
-        offset = 8 // self.dpcm_size
+        offset = 8 // self.dpcm_depth
         fmt += "B" * (len(samples) // offset)
 
         # pack samples
         packed_samples = []
         for idx in range(0, len(samples) - 1, offset):
-            if self.dpcm_size == 1:
+            if self.dpcm_depth == 1:
                 acc = sum([samples[idx + x] << (offset - x - 1) for x in range(offset)])
                 packed_samples.append(acc)
-            elif self.dpcm_size == 2:
+            elif self.dpcm_depth == 2:
                 packed_samples.append(
                     (samples[idx] << 6) + (samples[idx + 1] << 4) + (samples[idx + 2] << 2) + samples[idx + 3])
-            elif self.dpcm_size == 4:
+            elif self.dpcm_depth == 4:
                 packed_samples.append((samples[idx] << 4) + samples[idx + 1])
             else:
                 raise NotImplementedError
@@ -298,7 +298,7 @@ class DPCMCompressor:
         # unpack samples
         unpacked_samples = []
         for packed_sample in unpacked[3:]:
-            if self.dpcm_size == 1:
+            if self.dpcm_depth == 1:
                 unpacked_samples.append(packed_sample >> 7)
                 unpacked_samples.append((packed_sample >> 6) & 1)
                 unpacked_samples.append((packed_sample >> 5) & 1)
@@ -307,12 +307,12 @@ class DPCMCompressor:
                 unpacked_samples.append((packed_sample >> 2) & 1)
                 unpacked_samples.append((packed_sample >> 1) & 1)
                 unpacked_samples.append(packed_sample & 1)
-            elif self.dpcm_size == 2:
+            elif self.dpcm_depth == 2:
                 unpacked_samples.append(packed_sample >> 6)
                 unpacked_samples.append((packed_sample >> 4) & 0b11)
                 unpacked_samples.append((packed_sample >> 2) & 0b11)
                 unpacked_samples.append(packed_sample & 0b11)
-            elif self.dpcm_size == 4:
+            elif self.dpcm_depth == 4:
                 unpacked_samples.append(packed_sample >> 4)
                 unpacked_samples.append(packed_sample & 0xF)
             else:
