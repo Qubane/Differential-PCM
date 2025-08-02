@@ -277,13 +277,18 @@ class DPCMCompressor:
         packed_samples = []
         for idx in range(0, len(samples) - (offset - 1), offset):
             if self.dpcm_depth == 1:
-                acc = sum([samples[idx + x] << (offset - x - 1) for x in range(offset)])
+                acc = sum([int(samples[idx + x]) << (offset - x - 1) for x in range(offset)])
                 packed_samples.append(acc)
             elif self.dpcm_depth == 2:
                 packed_samples.append(
-                    (samples[idx] << 6) + (samples[idx + 1] << 4) + (samples[idx + 2] << 2) + samples[idx + 3])
+                    (int(samples[idx]) << 6) +
+                    (int(samples[idx + 1]) << 4) +
+                    (int(samples[idx + 2]) << 2) +
+                    int(samples[idx + 3]))
             elif self.dpcm_depth == 4:
-                packed_samples.append((samples[idx] << 4) + samples[idx + 1])
+                packed_samples.append(
+                    (int(samples[idx]) << 4) +
+                    int(samples[idx + 1]))
             else:
                 raise NotImplementedError
 
@@ -324,7 +329,7 @@ class DPCMCompressor:
 
         # calculate output array
         offset = 8 // self.dpcm_depth
-        samples = np.zeros(len(packed_samples) * offset)
+        samples = np.zeros(len(packed_samples) * offset, dtype=np.uint8)
 
         # unpack samples
         starting_shift = 8 - self.dpcm_depth
