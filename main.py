@@ -375,8 +375,8 @@ class Application:
         parser.add_argument(
             "--dpcm-depth",
             help="DPCM bit depth (1 - least quality & most compression)",
-            choices=[1, 2, 4],
-            default=4)
+            choices=["1", "2", "4"],
+            default="4")
 
         # parse arguments
         args = parser.parse_args()
@@ -384,7 +384,7 @@ class Application:
         # set parser arguments
         self.parser_input_file = args.input
         self.parser_output_file = args.output if args.output else "out_" + args.input
-        self.parser_dpcm_depth = args.dpcm_depth
+        self.parser_dpcm_depth = int(args.dpcm_depth)
         self.parser_mode = args.mode
 
     def run(self):
