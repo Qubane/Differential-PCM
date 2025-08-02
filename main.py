@@ -196,16 +196,20 @@ class DPCMCompressor:
         # perform DPCM
         accumulator = 0
         for idx, sample in enumerate(samples):
+            # calculate average sample
             average_sample = (samples[idx] + samples[idx + 1]) / 2 if idx < len(samples) - 1 else samples[idx]
 
             # calculate difference
-            diff = self.quantize(average_sample - accumulator)
+            diff = average_sample - accumulator
+
+            # quantize the difference
+            quantized_diff = self.quantize(diff)
 
             # append to encoded samples
-            encoded_samples[idx] = diff
+            encoded_samples[idx] = quantized_diff
 
             # update accumulator
-            accumulator += self.difference_mapping[diff]
+            accumulator += self.difference_mapping[quantized_diff]
 
         # return encoded samples
         return encoded_samples
