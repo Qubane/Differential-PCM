@@ -216,7 +216,7 @@ class DPCMCompressor:
         """
 
         # decoded samples
-        decoded_samples = np.zeros(samples.shape, dtype=np.int16)
+        decoded_samples = np.zeros(samples.shape, dtype=np.int8)
 
         # perform DPCM decoding
         accumulator = 0
@@ -225,7 +225,7 @@ class DPCMCompressor:
             diff = self.difference_mapping[quantized_diff]
 
             # add to accumulator
-            accumulator = max(min(accumulator + diff, 2 ** 15 - 1), -2 ** 15)
+            accumulator = max(min(accumulator + diff, 127), -128)
 
             # add to decoded samples
             decoded_samples[idx] = accumulator
@@ -419,6 +419,14 @@ class Application:
         # unpack samples
         samples = unpack_frames(frames, parameters)
 
+        # nuke the sample width to 8 bits
+        if parameters["sampwidth"] > 1:
+            if parameters["sampwidth"] == 2:
+                samples = (samples >> 8).astype(dtype=np.int8)
+            elif parameters["sampwidth"] == 3:
+                samples = (samples >> 16).astype(dtype=np.int8)
+            parameters["sampwidth"] = 1
+
         # split tracks
         tracks = split_tracks(samples, parameters["nchannels"])
 
@@ -474,6 +482,14 @@ class Application:
 
         # unpack samples
         samples = unpack_frames(frames, parameters)
+
+        # nuke the sample width to 8 bits
+        if parameters["sampwidth"] > 1:
+            if parameters["sampwidth"] == 2:
+                samples = (samples >> 8).astype(dtype=np.int8)
+            elif parameters["sampwidth"] == 3:
+                samples = (samples >> 16).astype(dtype=np.int8)
+            parameters["sampwidth"] = 1
 
         # split tracks
         tracks = split_tracks(samples, parameters["nchannels"])
