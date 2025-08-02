@@ -331,8 +331,6 @@ class Application:
         self.parser_output_file: str = ""
         self.parser_dpcm_depth: int = 0
 
-        self.parser_args()
-
     def parser_args(self):
         """
         Parses CLI arguments
@@ -368,11 +366,17 @@ class Application:
         self.parser_output_file = args.output if args.output else "out_" + args.input
         self.parser_dpcm_depth = args.dpcm_depth
 
-    def encode_wav(self, input_file: str, output_file: str) -> None:
+    def run(self):
+        """
+        Runs the application
+        """
+
+        # parse args
+        self.parser_args()
+
+    def encode_wav(self) -> None:
         """
         Encodes a .wav file
-        :param input_file: input .wav file
-        :param output_file: output .dpcm file
         """
 
         # read file
@@ -398,11 +402,9 @@ class Application:
         with open(output_file, "wb") as file:
             file.write(packed_dpcm)
 
-    def decode_wav(self, input_file: str, output_file: str) -> None:
+    def decode_wav(self) -> None:
         """
         Decodes a .wav DPCM encoded file
-        :param input_file: input .dpcm file
-        :param output_file: output .wav file
         """
 
         # read file
@@ -428,11 +430,9 @@ class Application:
         # store into file
         write_wav_file(output_file, frames, parameters)
 
-    def squeeze(self, input_file: str, output_file: str) -> None:
+    def squeeze(self) -> None:
         """
         Compresses and then decompresses the file, essentially just making quality worse
-        :param input_file: input .wav file
-        :param output_file: output .wav file
         """
 
         # read file
@@ -460,6 +460,8 @@ class Application:
 
 
 def main():
+    app = Application()
+    app.run()
 
     # pick mode
     if args.mode == "encode_wav":
