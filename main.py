@@ -96,7 +96,7 @@ def pack_frames(samples: np.ndarray, parameters: dict[str, int]) -> bytes:
     fmt = "<" + byte_width * samples.shape[0]
 
     # return packed_dpcm samples
-    return struct.pack(fmt, *(samples ^ 127 if parameters["sampwidth"] == 1 else samples))
+    return struct.pack(fmt, *(samples.astype(np.int8) ^ 127 if parameters["sampwidth"] == 1 else samples))
 
 
 def split_tracks(samples: np.ndarray, nchannels: int) -> list[np.ndarray]:
@@ -216,7 +216,7 @@ class DPCMCompressor:
         """
 
         # decoded samples
-        decoded_samples = np.zeros(samples.shape, dtype=np.int8)
+        decoded_samples = np.zeros(samples.shape, dtype=np.int16)
 
         # perform DPCM decoding
         accumulator = 0
