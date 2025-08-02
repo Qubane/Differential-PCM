@@ -133,7 +133,7 @@ class DPCMCompressor:
         fmt = "<BBL"
 
         offset = 8 // self.dpcm_size
-        fmt += "b" * (len(samples) // offset)
+        fmt += "B" * (len(samples) // offset)
 
         # pack samples
         packed_samples = []
@@ -149,13 +149,63 @@ class DPCMCompressor:
             else:
                 raise NotImplementedError
 
-        # return packet
+        # return packed
         return struct.pack(
             fmt,
             parameters["sampwidth"],
             parameters["nchannels"],
             parameters["framerate"],
             *packed_samples)
+
+    def unpack_dpcm(self, packed: bytes) -> tuple[list[int], dict[str, int]]:
+        """
+        Unpacks DPCM packed bytes
+        :param packed: packed DPCM compressed data
+        :return: tuple of samples and sample parameters
+        """
+
+        # file format
+        # byte width
+        # channel number
+        # framerate
+        # [samples]
+        fmt = "<BBL"
+        fmt += "B" * (len(packed) - 2 - 4)
+
+        # unpack raw
+        unpacked = struct.unpack(fmt, packed)
+
+        # make parameters
+        parameters = {
+            "sampwidth": unpacked[0],
+            "nchannels": unpacked[1],
+            "framerate": unpacked[2]}
+
+        # unpack samples
+        unpacked_samples = []
+        for packed_sample in unpacked[3:]:
+            if self.dpcm_size == 1:
+                unpacked_samples.append(packed_sample >> 7)
+                unpacked_samples.append((packed_sample >> 6) & 1)
+                unpacked_samples.append((packed_sample >> 5) & 1)
+                unpacked_samples.append((packed_sample >> 4) & 1)
+                unpacked_samples.append((packed_sample >> 3) & 1)
+                unpacked_samples.append((packed_sample >> 2) & 1)
+                unpacked_samples.append((packed_sample >> 1) & 1)
+                unpacked_samples.append(packed_sample & 1)
+            elif self.dpcm_size == 2:
+                unpacked_samples.append(packed_sample >> 6)
+                unpacked_samples.append((packed_sample >> 4) & 0b11)
+                unpacked_samples.append((packed_sample >> 2) & 0b11)
+                unpacked_samples.append(packed_sample & 0b11)
+            elif self.dpcm_size == 4:
+                unpacked_samples.append(packed_sample >> 4)
+                unpacked_samples.append(packed_sample & 0xF)
+            else:
+                raise NotImplementedError
+
+        # return unpacked
+        return unpacked_samples, parameters
 
 
 def make_wave_parameters(parameters) -> dict[str, int]:
