@@ -4,6 +4,119 @@ import struct
 import argparse
 
 
+def make_wave_parameters(parameters) -> dict[str, int]:
+    """
+    Makes parameters from "wave._wave_params" class that is not type hintable
+    """
+
+    # return essential parameters
+    return {
+        "sampwidth": parameters.sampwidth,
+        "nchannels": parameters.nchannels,
+        "framerate": parameters.framerate,
+        "nframes": parameters.nframes}
+
+
+def read_wav_file(file_path: str) -> tuple[bytes, dict[str, int]]:
+    """
+    Reads .wav file
+    :param file_path: path to file
+    """
+
+    # read file
+    with wave.open(file_path, 'rb') as wav_file:
+        parameters = make_wave_parameters(wav_file.getparams())
+        frames = wav_file.readframes(parameters["nframes"])
+
+    # output data
+    return frames, parameters
+
+
+def write_wav_file(file_path: str, frames: bytes, parameters: dict[str, int]):
+    """
+    Write .wav file
+    :param file_path: path to file
+    :param frames: frames to write
+    :param parameters: wave file parameters
+    """
+
+    # write file
+    with wave.open(file_path, 'wb') as wav_file:
+        # write parameters
+        wav_file.setsampwidth(parameters["sampwidth"])
+        wav_file.setnchannels(parameters["nchannels"])
+        wav_file.setframerate(parameters["framerate"])
+
+        # write frames
+        wav_file.writeframes(frames)
+
+
+def unpack_frames(frames: bytes, parameters: dict[str, int]) -> list[int]:
+    """
+    Unpacks the raw frame bytes
+    :param frames: frames to unpack
+    :param parameters: sample parameters
+    """
+
+    # figure out byte width
+    if parameters["sampwidth"] == 1:
+        byte_width = "b"
+    elif parameters["sampwidth"] == 2:
+        byte_width = "h"
+    else:
+        raise NotImplementedError
+
+    # generate fmt
+    fmt = "<" + byte_width * parameters["nframes"] * parameters["nchannels"]
+
+    # return unpacked samples
+    return list(struct.unpack(fmt, frames))
+
+
+def pack_frames(samples: list[int], parameters: dict[str, int]) -> bytes:
+    """
+    Packs samples back into raw frames
+    :param samples: samples to pack
+    :param parameters: sample parameters
+    """
+
+    # figure out byte width
+    if parameters["sampwidth"] == 1:
+        byte_width = "b"
+    elif parameters["sampwidth"] == 2:
+        byte_width = "h"
+    else:
+        raise NotImplementedError
+
+    # generate fmt
+    fmt = "<" + byte_width * len(samples)
+
+    # return packed_dpcm samples
+    return struct.pack(fmt, *samples)
+
+
+def split_tracks(samples: list[int], nchannels: int) -> list[list[int]]:
+    """
+    Splits single samples list into multiple tracks
+    :param samples: list of samples
+    :param nchannels: number of channels
+    """
+
+    return [samples[offset::nchannels] for offset in range(nchannels)]
+
+
+def merge_tracks(samples: list[int], tracks: list[list[int]], nchannels: int):
+    """
+    Splits single samples list into multiple tracks
+    :param samples: original samples list
+    :param tracks: list of tracks
+    :param nchannels: number of channels
+    """
+
+    for offset in range(nchannels):
+        samples[offset::nchannels] = tracks[offset]
+
+
 class DPCMCompressor:
     """
     Differential PCM compressor class
@@ -206,119 +319,6 @@ class DPCMCompressor:
 
         # return unpacked
         return unpacked_samples, parameters
-
-
-def make_wave_parameters(parameters) -> dict[str, int]:
-    """
-    Makes parameters from "wave._wave_params" class that is not type hintable
-    """
-
-    # return essential parameters
-    return {
-        "sampwidth": parameters.sampwidth,
-        "nchannels": parameters.nchannels,
-        "framerate": parameters.framerate,
-        "nframes": parameters.nframes}
-
-
-def read_wav_file(file_path: str) -> tuple[bytes, dict[str, int]]:
-    """
-    Reads .wav file
-    :param file_path: path to file
-    """
-
-    # read file
-    with wave.open(file_path, 'rb') as wav_file:
-        parameters = make_wave_parameters(wav_file.getparams())
-        frames = wav_file.readframes(parameters["nframes"])
-
-    # output data
-    return frames, parameters
-
-
-def write_wav_file(file_path: str, frames: bytes, parameters: dict[str, int]):
-    """
-    Write .wav file
-    :param file_path: path to file
-    :param frames: frames to write
-    :param parameters: wave file parameters
-    """
-
-    # write file
-    with wave.open(file_path, 'wb') as wav_file:
-        # write parameters
-        wav_file.setsampwidth(parameters["sampwidth"])
-        wav_file.setnchannels(parameters["nchannels"])
-        wav_file.setframerate(parameters["framerate"])
-
-        # write frames
-        wav_file.writeframes(frames)
-
-
-def unpack_frames(frames: bytes, parameters: dict[str, int]) -> list[int]:
-    """
-    Unpacks the raw frame bytes
-    :param frames: frames to unpack
-    :param parameters: sample parameters
-    """
-
-    # figure out byte width
-    if parameters["sampwidth"] == 1:
-        byte_width = "b"
-    elif parameters["sampwidth"] == 2:
-        byte_width = "h"
-    else:
-        raise NotImplementedError
-
-    # generate fmt
-    fmt = "<" + byte_width * parameters["nframes"] * parameters["nchannels"]
-
-    # return unpacked samples
-    return list(struct.unpack(fmt, frames))
-
-
-def pack_frames(samples: list[int], parameters: dict[str, int]) -> bytes:
-    """
-    Packs samples back into raw frames
-    :param samples: samples to pack
-    :param parameters: sample parameters
-    """
-
-    # figure out byte width
-    if parameters["sampwidth"] == 1:
-        byte_width = "b"
-    elif parameters["sampwidth"] == 2:
-        byte_width = "h"
-    else:
-        raise NotImplementedError
-
-    # generate fmt
-    fmt = "<" + byte_width * len(samples)
-
-    # return packed_dpcm samples
-    return struct.pack(fmt, *samples)
-
-
-def split_tracks(samples: list[int], nchannels: int) -> list[list[int]]:
-    """
-    Splits single samples list into multiple tracks
-    :param samples: list of samples
-    :param nchannels: number of channels
-    """
-
-    return [samples[offset::nchannels] for offset in range(nchannels)]
-
-
-def merge_tracks(samples: list[int], tracks: list[list[int]], nchannels: int):
-    """
-    Splits single samples list into multiple tracks
-    :param samples: original samples list
-    :param tracks: list of tracks
-    :param nchannels: number of channels
-    """
-
-    for offset in range(nchannels):
-        samples[offset::nchannels] = tracks[offset]
 
 
 class Application:
