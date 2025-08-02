@@ -229,6 +229,30 @@ class DPCMCompressor:
         # return decoded samples
         return decoded_samples
 
+    def compress(self, samples: np.ndarray) -> np.ndarray:
+        """
+        Compress samples using Differential Pulse Code Modulation
+        :param samples: audio samples
+        """
+
+        # encode and quantize
+        samples = self.encode(samples)
+        samples = (np.vectorize(self.quantize)(samples)).astype(np.uint8)
+
+        return samples
+
+    def decompress(self, samples: np.ndarray) -> np.ndarray:
+        """
+        Decompresses DPCM encoded samples
+        :param samples: dpcm samples
+        """
+
+        # dequantize and decode
+        samples = (np.vectorize(lambda x: self.difference_mapping[x])(samples))
+        samples = self.decode(samples)
+
+        return samples
+
     @staticmethod
     def _packing_format(sample_count: int) -> str:
         """
