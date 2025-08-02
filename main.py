@@ -180,36 +180,27 @@ class DPCMCompressor:
                     return idx
             return 0
 
-    def encode(self, samples: list[int], sample_width: int = 1) -> list[int]:
+    def encode(self, samples: np.ndarray) -> np.ndarray:
         """
         Encodes samples using DPCM
-        :param samples: list of integer samples
-        :param sample_width: byte-width of each sample
-        :return: 4 bit DPCM compressed samples
+        :param samples: integer samples
+        :return: list of unquantized differences
         """
 
         # encoded samples
-        encoded_samples = []
-
-        # make sample width correction
-        sample_width_offset = 8 if sample_width == 2 else 0
-
-        # make signed correction mask
-        correction_mask = 127 if sample_width == 1 else 0
+        encoded_samples = np.zeros(samples.shape, dtype=np.int32)
 
         # perform DPCM
         accumulator = 0
-        for sample in samples:
+        for idx, sample in enumerate(samples):
             # calculate difference
-            diff = ((sample >> sample_width_offset) ^ correction_mask) - accumulator
-
-            # map to range
-            quantized_diff = self.quantize(diff)
+            diff = sample - accumulator
 
             # append to encoded samples
-            encoded_samples.append(quantized_diff)
+            encoded_samples[idx] = diff
 
-            accumulator += self.difference_mapping[quantized_diff]
+            # update accumulator
+            accumulator += diff
 
         # return encoded samples
         return encoded_samples
@@ -515,8 +506,40 @@ class Application:
 
 
 def main():
-    app = Application()
-    app.run()
+    # app = Application()
+    # app.run()
+
+    import matplotlib.pyplot as plt
+
+    plot_start = 0
+    plot_end = plot_start + 128
+
+    compressor = DPCMCompressor(4)
+
+    # read file
+    frames, parameters = read_wav_file("tests/sine_8.wav")
+
+    # unpack samples
+    samples = np.array(unpack_frames(frames, parameters), dtype=np.int16).astype(np.int32)
+
+    # idk why signed byte integers need that
+    if parameters["sampwidth"] == 1:
+        samples ^= 127
+
+    plt.subplot(3, 1, 1)
+    plt.plot(samples[plot_start:plot_end])
+
+    samples = compressor.encode(samples)
+
+    plt.subplot(3, 1, 2)
+    plt.plot(samples[plot_start:plot_end])
+
+    samples = compressor.encode(samples)
+
+    plt.subplot(3, 1, 3)
+    plt.plot(samples[plot_start:plot_end])
+
+    plt.show()
 
 
 if __name__ == '__main__':
