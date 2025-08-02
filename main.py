@@ -242,6 +242,32 @@ class DPCMCompressor:
         # return decoded samples
         return decoded_samples
 
+    def _packing_format(self, sample_count: int) -> str:
+        """
+        Generates a packing / unpacking format string for DPCM compressed files
+        """
+
+        # file format (little-endian)
+        fmt = "<"
+
+        # byte width (1 byte unsigned integer)
+        fmt += "B"
+
+        # channel number (1 byte unsigned integer)
+        fmt += "B"
+
+        # framerate (4 byte unsigned integer)
+        fmt += "L"
+
+        # DPCM depth (1 byte unsigned integer)
+        fmt += "B"
+
+        # [samples] (1 byte unsigned integer array)
+        fmt += "B" * sample_count
+
+        # return format
+        return fmt
+
     def pack_dpcm(self, samples: list[int], parameters: dict[str, int]) -> bytes:
         """
         Packs DPCM encoded samples into bytes
@@ -249,16 +275,11 @@ class DPCMCompressor:
         :param parameters: sample parameters
         """
 
-        # file format
-        # byte width        1 byte
-        # channel number    1 byte
-        # DPCM depth        1 byte
-        # framerate         4 bytes
-        # [samples]         N bytes
-        fmt = "<BBBL"
-
+        # calculate offset
         offset = 8 // self.dpcm_depth
-        fmt += "B" * (len(samples) // offset)
+
+        # make format
+        fmt = self._packing_format(len(samples) // offset)
 
         # pack samples
         packed_samples = []
@@ -279,8 +300,8 @@ class DPCMCompressor:
             fmt,
             parameters["sampwidth"],
             parameters["nchannels"],
-            self.dpcm_depth,
             parameters["framerate"],
+            self.dpcm_depth,
             *packed_samples)
 
     def unpack_dpcm(self, packed: bytes) -> tuple[list[int], dict[str, int]]:
@@ -291,13 +312,8 @@ class DPCMCompressor:
         """
 
         # file format
-        # byte width        1 byte
-        # channel number    1 byte
-        # DPCM depth        1 byte
-        # framerate         4 bytes
-        # [samples]         N bytes
-        fmt = "<BBBL"
-        fmt += "B" * (len(packed) - 3 - 4)
+        # magic number refers to sample array start in bytes
+        fmt = self._packing_format(len(packed) - 3 - 4)
 
         # unpack raw
         unpacked = struct.unpack(fmt, packed)
@@ -306,10 +322,10 @@ class DPCMCompressor:
         parameters = {
             "sampwidth": unpacked[0],
             "nchannels": unpacked[1],
-            "framerate": unpacked[3]}
+            "framerate": unpacked[2]}
 
         # set dpcm depth
-        self._set_dpcm(unpacked[2])
+        self._set_dpcm(unpacked[3])
 
         # unpack samples
         unpacked_samples = []
