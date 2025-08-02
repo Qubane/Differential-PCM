@@ -141,7 +141,26 @@ class DPCMCompressor:
         self.dpcm_depth = depth
         self.dpcm_size = 2 ** self.dpcm_depth
 
-        self.difference_mapping = np.zeros(self.dpcm_size, dtype=np.int32)
+        self._make_mapping()
+
+    def _make_mapping(self):
+        """
+        Generates a difference mapping for compressor
+        """
+
+        # functions were picked based on "good vibes"
+        if self.dpcm_depth == 1:
+            diff_function = lambda x: abs(x) * 16
+        elif self.dpcm_depth == 2:
+            diff_function = lambda x: (abs(x) ** 4 + 4) * np.sign(x)
+        elif self.dpcm_depth == 4:
+            diff_function = lambda x: (abs(x) ** 2 + 1) * np.sign(x)
+        else:
+            raise NotImplementedError
+
+        # generate difference mapping
+        self.difference_mapping = np.arange(-self.dpcm_size / 2, self.dpcm_size / 2) + 0.5
+        self.difference_mapping = np.vectorize(diff_function)(self.difference_mapping)
 
     def quantize(self, value: int) -> int:
         """
@@ -169,7 +188,7 @@ class DPCMCompressor:
         """
 
         # encoded samples
-        encoded_samples = np.zeros(samples.shape, dtype=np.int32)
+        encoded_samples = np.zeros(samples.shape, dtype=np.int16)
 
         # perform DPCM
         accumulator = 0
@@ -194,13 +213,13 @@ class DPCMCompressor:
         """
 
         # decoded samples
-        decoded_samples = np.zeros(samples.shape, dtype=np.int32)
+        decoded_samples = np.zeros(samples.shape, dtype=np.int16)
 
         # perform DPCM decoding
         accumulator = 0
         for idx, diff in enumerate(samples):
             # add to accumulator
-            accumulator = max(min(accumulator + diff, 2**31 - 1), -2**31)
+            accumulator = max(min(accumulator + diff, 2 ** 15 - 1), -2 ** 15)
 
             # add to decoded samples
             decoded_samples[idx] = accumulator
@@ -491,23 +510,25 @@ def main():
     frames, parameters = read_wav_file("tests/rick_8.wav")
 
     # unpack samples
-    samples = np.array(unpack_frames(frames, parameters), dtype=np.int16).astype(np.int32)
+    samples = np.array(unpack_frames(frames, parameters), dtype=np.int16)
 
     # idk why signed byte integers need that
     if parameters["sampwidth"] == 1:
         samples ^= 127
 
-    # encoding
+    # plot original samples
     plt.subplot(3, 1, 1)
     plt.plot(samples[plot_start:plot_end])
 
     samples = compressor.encode(samples)
 
+    # plot encoded samples
     plt.subplot(3, 1, 2)
     plt.plot(samples[plot_start:plot_end])
 
     samples = compressor.decode(samples)
 
+    # plot decoded samples
     plt.subplot(3, 1, 3)
     plt.plot(samples[plot_start:plot_end])
 
