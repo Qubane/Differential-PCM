@@ -180,7 +180,8 @@ class DPCMCompressor:
                     return idx
             return 0
 
-    def encode(self, samples: np.ndarray) -> np.ndarray:
+    @staticmethod
+    def encode(samples: np.ndarray) -> np.ndarray:
         """
         Encodes samples using DPCM
         :param samples: integer samples
@@ -205,7 +206,8 @@ class DPCMCompressor:
         # return encoded samples
         return encoded_samples
 
-    def decode(self, samples: np.ndarray) -> np.ndarray:
+    @staticmethod
+    def decode(samples: np.ndarray) -> np.ndarray:
         """
         Decodes DPCM encoded samples
         :param samples: list of DPCM encoded samples
@@ -227,7 +229,8 @@ class DPCMCompressor:
         # return decoded samples
         return decoded_samples
 
-    def _packing_format(self, sample_count: int) -> str:
+    @staticmethod
+    def _packing_format(sample_count: int) -> str:
         """
         Generates a packing / unpacking format string for DPCM compressed files
         """
