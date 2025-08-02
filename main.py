@@ -129,6 +129,16 @@ class DPCMCompressor:
         self.difference_mapping: list[float] = []
         self._make_mapping()
 
+    def _set_dpcm(self, depth: int):
+        """
+        Sets own DPCM depth
+        """
+
+        self.dpcm_depth = depth
+        self.dpcm_size = 2 ** self.dpcm_depth
+
+        self._make_mapping()
+
     def _make_mapping(self):
         """
         Generates a difference mapping for compressor
@@ -240,11 +250,12 @@ class DPCMCompressor:
         """
 
         # file format
-        # byte width
-        # channel number
-        # framerate
-        # [samples]
-        fmt = "<BBL"
+        # byte width        1 byte
+        # channel number    1 byte
+        # DPCM depth        1 byte
+        # framerate         4 bytes
+        # [samples]         N bytes
+        fmt = "<BBBL"
 
         offset = 8 // self.dpcm_depth
         fmt += "B" * (len(samples) // offset)
@@ -268,6 +279,7 @@ class DPCMCompressor:
             fmt,
             parameters["sampwidth"],
             parameters["nchannels"],
+            self.dpcm_depth,
             parameters["framerate"],
             *packed_samples)
 
@@ -279,12 +291,13 @@ class DPCMCompressor:
         """
 
         # file format
-        # byte width
-        # channel number
-        # framerate
-        # [samples]
-        fmt = "<BBL"
-        fmt += "B" * (len(packed) - 2 - 4)
+        # byte width        1 byte
+        # channel number    1 byte
+        # DPCM depth        1 byte
+        # framerate         4 bytes
+        # [samples]         N bytes
+        fmt = "<BBBL"
+        fmt += "B" * (len(packed) - 3 - 4)
 
         # unpack raw
         unpacked = struct.unpack(fmt, packed)
@@ -293,11 +306,14 @@ class DPCMCompressor:
         parameters = {
             "sampwidth": unpacked[0],
             "nchannels": unpacked[1],
-            "framerate": unpacked[2]}
+            "framerate": unpacked[3]}
+
+        # set dpcm depth
+        self._set_dpcm(unpacked[2])
 
         # unpack samples
         unpacked_samples = []
-        for packed_sample in unpacked[3:]:
+        for packed_sample in unpacked[4:]:
             if self.dpcm_depth == 1:
                 unpacked_samples.append(packed_sample >> 7)
                 unpacked_samples.append((packed_sample >> 6) & 1)
