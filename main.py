@@ -141,26 +141,7 @@ class DPCMCompressor:
         self.dpcm_depth = depth
         self.dpcm_size = 2 ** self.dpcm_depth
 
-        self._make_mapping()
-
-    def _make_mapping(self):
-        """
-        Generates a difference mapping for compressor
-        """
-
-        # functions were picked based on "good vibes"
-        if self.dpcm_depth == 1:
-            diff_function = lambda x: abs(x) * 16
-        elif self.dpcm_depth == 2:
-            diff_function = lambda x: (abs(x) ** 4 + 4) * np.sign(x)
-        elif self.dpcm_depth == 4:
-            diff_function = lambda x: (abs(x) ** 2 + 1) * np.sign(x)
-        else:
-            raise NotImplementedError
-
-        # generate difference mapping
-        self.difference_mapping = np.arange(-self.dpcm_size / 2, self.dpcm_size / 2) + 0.5
-        self.difference_mapping = np.vectorize(diff_function)(self.difference_mapping)
+        self.difference_mapping = np.zeros(self.dpcm_size, dtype=np.int32)
 
     def quantize(self, value: int) -> int:
         """
@@ -502,12 +483,12 @@ def main():
     import matplotlib.pyplot as plt
 
     plot_start = 32
-    plot_end = plot_start + 128
+    plot_end = plot_start + 256
 
     compressor = DPCMCompressor(4)
 
     # read file
-    frames, parameters = read_wav_file("tests/sine_8.wav")
+    frames, parameters = read_wav_file("tests/rick_8.wav")
 
     # unpack samples
     samples = np.array(unpack_frames(frames, parameters), dtype=np.int16).astype(np.int32)
@@ -517,28 +498,17 @@ def main():
         samples ^= 127
 
     # encoding
-    plt.subplot(5, 1, 1)
+    plt.subplot(3, 1, 1)
     plt.plot(samples[plot_start:plot_end])
 
     samples = compressor.encode(samples)
 
-    plt.subplot(5, 1, 2)
-    plt.plot(samples[plot_start:plot_end])
-
-    samples = compressor.encode(samples)
-
-    plt.subplot(5, 1, 3)
-    plt.plot(samples[plot_start:plot_end])
-
-    # decoding
-    samples = compressor.decode(samples)
-
-    plt.subplot(5, 1, 4)
+    plt.subplot(3, 1, 2)
     plt.plot(samples[plot_start:plot_end])
 
     samples = compressor.decode(samples)
 
-    plt.subplot(5, 1, 5)
+    plt.subplot(3, 1, 3)
     plt.plot(samples[plot_start:plot_end])
 
     plt.show()
