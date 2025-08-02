@@ -146,7 +146,7 @@ class DPCMCompressor:
 
         # functions were picked based on "good vibes"
         if self.dpcm_depth == 1:
-            diff_function = lambda x: abs(x) * 10
+            diff_function = lambda x: abs(x) * 16
         elif self.dpcm_depth == 2:
             diff_function = lambda x: abs(x) ** 4 + 4
         elif self.dpcm_depth == 4:
