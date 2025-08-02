@@ -52,7 +52,7 @@ def write_wav_file(file_path: str, frames: bytes, parameters: dict[str, int]):
         wav_file.writeframes(frames)
 
 
-def unpack_frames(frames: bytes, parameters: dict[str, int]) -> list[int]:
+def unpack_frames(frames: bytes, parameters: dict[str, int]) -> np.ndarray:
     """
     Unpacks the raw frame bytes
     :param frames: frames to unpack
@@ -70,11 +70,14 @@ def unpack_frames(frames: bytes, parameters: dict[str, int]) -> list[int]:
     # generate fmt
     fmt = "<" + byte_width * parameters["nframes"] * parameters["nchannels"]
 
-    # return unpacked samples
-    return list(struct.unpack(fmt, frames))
+    # make samples
+    samples = np.array(struct.unpack(fmt, frames), dtype=np.int16)
+
+    # return samples
+    return samples ^ 127 if parameters["sampwidth"] == 1 else samples
 
 
-def pack_frames(samples: list[int], parameters: dict[str, int]) -> bytes:
+def pack_frames(samples: np.ndarray, parameters: dict[str, int]) -> bytes:
     """
     Packs samples back into raw frames
     :param samples: samples to pack
@@ -90,13 +93,13 @@ def pack_frames(samples: list[int], parameters: dict[str, int]) -> bytes:
         raise NotImplementedError
 
     # generate fmt
-    fmt = "<" + byte_width * len(samples)
+    fmt = "<" + byte_width * samples.shape[0]
 
     # return packed_dpcm samples
-    return struct.pack(fmt, *samples)
+    return struct.pack(fmt, *(samples ^ 127 if parameters["sampwidth"] == 1 else samples))
 
 
-def split_tracks(samples: list[int], nchannels: int) -> list[list[int]]:
+def split_tracks(samples: np.ndarray, nchannels: int) -> list[np.ndarray]:
     """
     Splits single samples list into multiple tracks
     :param samples: list of samples
@@ -106,7 +109,7 @@ def split_tracks(samples: list[int], nchannels: int) -> list[list[int]]:
     return [samples[offset::nchannels] for offset in range(nchannels)]
 
 
-def merge_tracks(samples: list[int], tracks: list[list[int]], nchannels: int):
+def merge_tracks(samples: np.ndarray, tracks: list[np.ndarray], nchannels: int):
     """
     Splits single samples list into multiple tracks
     :param samples: original samples list
@@ -293,7 +296,7 @@ class DPCMCompressor:
             self.dpcm_depth,
             *packed_samples)
 
-    def unpack_dpcm(self, packed: bytes) -> tuple[list[int], dict[str, int]]:
+    def unpack_dpcm(self, packed: bytes) -> tuple[np.ndarray, dict[str, int]]:
         """
         Unpacks DPCM packed bytes
         :param packed: packed DPCM compressed data
@@ -317,30 +320,21 @@ class DPCMCompressor:
         self._set_dpcm(unpacked[3])
 
         # unpack samples
-        unpacked_samples = []
-        for packed_sample in unpacked[4:]:
-            if self.dpcm_depth == 1:
-                unpacked_samples.append(packed_sample >> 7)
-                unpacked_samples.append((packed_sample >> 6) & 1)
-                unpacked_samples.append((packed_sample >> 5) & 1)
-                unpacked_samples.append((packed_sample >> 4) & 1)
-                unpacked_samples.append((packed_sample >> 3) & 1)
-                unpacked_samples.append((packed_sample >> 2) & 1)
-                unpacked_samples.append((packed_sample >> 1) & 1)
-                unpacked_samples.append(packed_sample & 1)
-            elif self.dpcm_depth == 2:
-                unpacked_samples.append(packed_sample >> 6)
-                unpacked_samples.append((packed_sample >> 4) & 0b11)
-                unpacked_samples.append((packed_sample >> 2) & 0b11)
-                unpacked_samples.append(packed_sample & 0b11)
-            elif self.dpcm_depth == 4:
-                unpacked_samples.append(packed_sample >> 4)
-                unpacked_samples.append(packed_sample & 0xF)
-            else:
-                raise NotImplementedError
+        packed_samples = unpacked[4:]
+
+        # calculate output array
+        offset = 8 // self.dpcm_depth
+        samples = np.zeros(len(packed_samples) * offset)
+
+        # unpack samples
+        starting_shift = 8 - self.dpcm_depth
+        integer_mask = 2 ** self.dpcm_depth - 1
+        for idx, packed_sample in enumerate(packed_samples):
+            for i in range(offset):
+                samples[idx * offset + i] = (packed_sample >> (starting_shift - i * self.dpcm_depth)) & integer_mask
 
         # return unpacked
-        return unpacked_samples, parameters
+        return samples, parameters
 
 
 class Application:
@@ -430,7 +424,7 @@ class Application:
 
         # encode tracks
         for track_idx in range(parameters["nchannels"]):
-            tracks[track_idx] = self.compressor.compress(tracks[track_idx], sample_width=parameters["sampwidth"])
+            tracks[track_idx] = self.compressor.compress(tracks[track_idx])
 
         # merge multiple tracks
         merge_tracks(samples, tracks, parameters["nchannels"])
@@ -459,7 +453,7 @@ class Application:
 
         # decode tracks
         for track_idx in range(parameters["nchannels"]):
-            tracks[track_idx] = self.compressor.decompress(tracks[track_idx], sample_width=parameters["sampwidth"])
+            tracks[track_idx] = self.compressor.decompress(tracks[track_idx])
 
         # merge multiple tracks
         merge_tracks(samples, tracks, parameters["nchannels"])
@@ -486,8 +480,8 @@ class Application:
 
         # encode & decode tracks (squeeze)
         for track_idx in range(parameters["nchannels"]):
-            tracks[track_idx] = self.compressor.compress(tracks[track_idx], sample_width=parameters["sampwidth"])
-            tracks[track_idx] = self.compressor.decompress(tracks[track_idx], sample_width=parameters["sampwidth"])
+            tracks[track_idx] = self.compressor.compress(tracks[track_idx])
+            tracks[track_idx] = self.compressor.decompress(tracks[track_idx])
 
         # merge multiple tracks
         merge_tracks(samples, tracks, parameters["nchannels"])
