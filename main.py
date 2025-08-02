@@ -262,7 +262,7 @@ class DPCMCompressor:
 
         # pack samples
         packed_samples = []
-        for idx in range(0, len(samples) - 1, offset):
+        for idx in range(0, len(samples) - (offset - 1), offset):
             if self.dpcm_depth == 1:
                 acc = sum([samples[idx + x] << (offset - x - 1) for x in range(offset)])
                 packed_samples.append(acc)
