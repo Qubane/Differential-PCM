@@ -146,6 +146,7 @@ class DPCMCompressor:
 
         # generate difference mapping
         self.difference_mapping = [diff_function(x + 0.5) for x in range(-self.dpcm_size // 2, self.dpcm_size // 2)]
+        self.difference_mapping[:self.dpcm_size // 2] = map(lambda x: -x, self.difference_mapping[:self.dpcm_size // 2])
 
     def quantize(self, value: int) -> int:
         """
