@@ -299,68 +299,6 @@ def pack_frames(samples: list[int], parameters: dict[str, int]) -> bytes:
     return struct.pack(fmt, *samples)
 
 
-def pack_dpcm(samples: list[int], parameters: dict[str, int]) -> bytes:
-    """
-    Packs DPCM binary
-    :param samples: samples to pack
-    :param parameters: sample parameters
-    """
-
-    # file format
-    # byte width
-    # channel number
-    # framerate
-    # [samples]
-    fmt = "<BBL"
-    fmt += "B" * (len(samples) // 2)
-
-    # pack samples
-    packed_samples = []
-    for idx in range(0, len(samples) - 1, 2):
-        packed_samples.append((samples[idx] << 4) + samples[idx + 1])
-
-    # return packed_dpcm
-    return struct.pack(
-        fmt,
-        parameters["sampwidth"],
-        parameters["nchannels"],
-        parameters["framerate"],
-        *packed_samples)
-
-
-def unpack_dpcm(packed_dpcm: bytes) -> tuple[list[int], dict[str, int]]:
-    """
-    Unpacks DPCM packed bytes
-    :param packed_dpcm: packed DPCM compressed data
-    :return: tuple of samples and sample parameters
-    """
-
-    # file format
-    # sample width
-    # channel number
-    # [samples]
-    fmt = "<BBL"
-    fmt += "B" * (len(packed_dpcm) - 2 - 4)
-
-    # unpack raw
-    unpacked = struct.unpack(fmt, packed_dpcm)
-
-    # make parameters
-    parameters = {
-        "sampwidth": unpacked[0],
-        "nchannels": unpacked[1],
-        "framerate": unpacked[2]}
-
-    # unpack samples
-    unpacked_samples = []
-    for packed_sample in unpacked[3:]:
-        unpacked_samples.append(packed_sample >> 4)
-        unpacked_samples.append(packed_sample & 0xF)
-
-    # return unpacked
-    return unpacked_samples, parameters
-
-
 def split_tracks(samples: list[int], nchannels: int) -> list[list[int]]:
     """
     Splits single samples list into multiple tracks
@@ -383,128 +321,145 @@ def merge_tracks(samples: list[int], tracks: list[list[int]], nchannels: int):
         samples[offset::nchannels] = tracks[offset]
 
 
-def encode_wav(input_file: str, output_file: str) -> None:
+class Application:
     """
-    Encodes a .wav file
-    :param input_file: input .wav file
-    :param output_file: output .dpcm file
+    Application class
     """
 
-    # read file
-    frames, parameters = read_wav_file(input_file)
+    def __init__(self):
+        self.parser_input_file: str = ""
+        self.parser_output_file: str = ""
+        self.parser_dpcm_depth: int = 0
 
-    # unpack samples
-    samples = unpack_frames(frames, parameters)
+        self.parser_args()
 
-    # split tracks
-    tracks = split_tracks(samples, parameters["nchannels"])
+    def parser_args(self):
+        """
+        Parses CLI arguments
+        """
 
-    # encode tracks
-    for track_idx in range(parameters["nchannels"]):
-        tracks[track_idx] = dpcm_encode(tracks[track_idx], sample_width=parameters["sampwidth"])
+        # parse arguments
+        parser = argparse.ArgumentParser(prog="Differential PCM codec")
 
-    # merge multiple tracks
-    merge_tracks(samples, tracks, parameters["nchannels"])
+        # add arguments
+        parser.add_argument(
+            "-i", "--input",
+            help="file input",
+            required=True)
+        parser.add_argument(
+            "-o", "--output",
+            help="file output")
+        parser.add_argument(
+            "--mode",
+            help="modes of DPCM codec",
+            choices=["encode_wav", "decode_wav", "squeeze"],
+            required=True)
+        parser.add_argument(
+            "--dpcm-depth",
+            help="DPCM bit depth (1 - least quality & most compression)",
+            choices=[1, 2, 4],
+            default=4)
 
-    # pack bytes
-    packed_dpcm = pack_dpcm(samples, parameters)
+        # parse arguments
+        args = parser.parse_args()
 
-    # store into file
-    with open(output_file, "wb") as file:
-        file.write(packed_dpcm)
+        # set parser arguments
+        self.parser_input_file = args.input
+        self.parser_output_file = args.output if args.output else "out_" + args.input
+        self.parser_dpcm_depth = args.dpcm_depth
 
+    def encode_wav(self, input_file: str, output_file: str) -> None:
+        """
+        Encodes a .wav file
+        :param input_file: input .wav file
+        :param output_file: output .dpcm file
+        """
 
-def decode_wav(input_file: str, output_file: str) -> None:
-    """
-    Decodes a .wav DPCM encoded file
-    :param input_file: input .dpcm file
-    :param output_file: output .wav file
-    """
+        # read file
+        frames, parameters = read_wav_file(input_file)
 
-    # read file
-    with open(input_file, "rb") as file:
-        packed_dpcm = file.read()
+        # unpack samples
+        samples = unpack_frames(frames, parameters)
 
-    # unpack DPCM
-    samples, parameters = unpack_dpcm(packed_dpcm)
+        # split tracks
+        tracks = split_tracks(samples, parameters["nchannels"])
 
-    # split tracks
-    tracks = split_tracks(samples, parameters["nchannels"])
+        # encode tracks
+        for track_idx in range(parameters["nchannels"]):
+            tracks[track_idx] = dpcm_encode(tracks[track_idx], sample_width=parameters["sampwidth"])
 
-    # decode tracks
-    for track_idx in range(parameters["nchannels"]):
-        tracks[track_idx] = dpcm_decode(tracks[track_idx], sample_width=parameters["sampwidth"])
+        # merge multiple tracks
+        merge_tracks(samples, tracks, parameters["nchannels"])
 
-    # merge multiple tracks
-    merge_tracks(samples, tracks, parameters["nchannels"])
+        # pack bytes
+        packed_dpcm = pack_dpcm(samples, parameters)
 
-    # convert into frames
-    frames = pack_frames(samples, parameters)
+        # store into file
+        with open(output_file, "wb") as file:
+            file.write(packed_dpcm)
 
-    # store into file
-    write_wav_file(output_file, frames, parameters)
+    def decode_wav(self, input_file: str, output_file: str) -> None:
+        """
+        Decodes a .wav DPCM encoded file
+        :param input_file: input .dpcm file
+        :param output_file: output .wav file
+        """
 
+        # read file
+        with open(input_file, "rb") as file:
+            packed_dpcm = file.read()
 
-def squeeze(input_file: str, output_file: str) -> None:
-    """
-    Compresses and then decompresses the file, essentially just making quality worse
-    :param input_file: input .wav file
-    :param output_file: output .wav file
-    """
+        # unpack DPCM
+        samples, parameters = unpack_dpcm(packed_dpcm)
 
-    # read file
-    frames, parameters = read_wav_file(input_file)
+        # split tracks
+        tracks = split_tracks(samples, parameters["nchannels"])
 
-    # unpack samples
-    samples = unpack_frames(frames, parameters)
+        # decode tracks
+        for track_idx in range(parameters["nchannels"]):
+            tracks[track_idx] = dpcm_decode(tracks[track_idx], sample_width=parameters["sampwidth"])
 
-    # split tracks
-    tracks = split_tracks(samples, parameters["nchannels"])
+        # merge multiple tracks
+        merge_tracks(samples, tracks, parameters["nchannels"])
 
-    # encode & decode tracks (squeeze)
-    for track_idx in range(parameters["nchannels"]):
-        tracks[track_idx] = dpcm_encode(tracks[track_idx], sample_width=parameters["sampwidth"])
-        tracks[track_idx] = dpcm_decode(tracks[track_idx], sample_width=parameters["sampwidth"])
+        # convert into frames
+        frames = pack_frames(samples, parameters)
 
-    # merge multiple tracks
-    merge_tracks(samples, tracks, parameters["nchannels"])
+        # store into file
+        write_wav_file(output_file, frames, parameters)
 
-    # convert into frames
-    frames = pack_frames(samples, parameters)
+    def squeeze(self, input_file: str, output_file: str) -> None:
+        """
+        Compresses and then decompresses the file, essentially just making quality worse
+        :param input_file: input .wav file
+        :param output_file: output .wav file
+        """
 
-    # store into file
-    write_wav_file(output_file, frames, parameters)
+        # read file
+        frames, parameters = read_wav_file(input_file)
+
+        # unpack samples
+        samples = unpack_frames(frames, parameters)
+
+        # split tracks
+        tracks = split_tracks(samples, parameters["nchannels"])
+
+        # encode & decode tracks (squeeze)
+        for track_idx in range(parameters["nchannels"]):
+            tracks[track_idx] = dpcm_encode(tracks[track_idx], sample_width=parameters["sampwidth"])
+            tracks[track_idx] = dpcm_decode(tracks[track_idx], sample_width=parameters["sampwidth"])
+
+        # merge multiple tracks
+        merge_tracks(samples, tracks, parameters["nchannels"])
+
+        # convert into frames
+        frames = pack_frames(samples, parameters)
+
+        # store into file
+        write_wav_file(output_file, frames, parameters)
 
 
 def main():
-    # parse arguments
-    parser = argparse.ArgumentParser(prog="Differential PCM codec")
-
-    # add arguments
-    parser.add_argument(
-        "-i", "--input",
-        help="file input",
-        required=True)
-    parser.add_argument(
-        "-o", "--output",
-        help="file output")
-    parser.add_argument(
-        "--mode",
-        help="modes of DPCM codec",
-        choices=["encode_wav", "decode_wav", "squeeze"],
-        required=True)
-    parser.add_argument(
-        "--dpcm-depth",
-        help="DPCM bit depth (1 - least quality & most compression)",
-        choices=[1, 2, 4],
-        default=4)
-
-    # parse arguments
-    args = parser.parse_args()
-
-    # make file names
-    input_file = args.input
-    output_file = args.output if args.output else "out_" + args.input
 
     # pick mode
     if args.mode == "encode_wav":
