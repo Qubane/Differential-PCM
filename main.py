@@ -180,8 +180,7 @@ class DPCMCompressor:
                     return idx
             return 0
 
-    @staticmethod
-    def encode(samples: np.ndarray) -> np.ndarray:
+    def compress(self, samples: np.ndarray) -> np.ndarray:
         """
         Encodes samples using DPCM
         :param samples: integer samples
@@ -189,25 +188,24 @@ class DPCMCompressor:
         """
 
         # encoded samples
-        encoded_samples = np.zeros(samples.shape, dtype=np.int16)
+        encoded_samples = np.zeros(samples.shape, dtype=np.int8)
 
         # perform DPCM
         accumulator = 0
         for idx, sample in enumerate(samples):
             # calculate difference
-            diff = sample - accumulator
+            diff = self.quantize(sample - accumulator)
 
             # append to encoded samples
             encoded_samples[idx] = diff
 
             # update accumulator
-            accumulator += diff
+            accumulator += self.difference_mapping[diff]
 
         # return encoded samples
         return encoded_samples
 
-    @staticmethod
-    def decode(samples: np.ndarray) -> np.ndarray:
+    def decompress(self, samples: np.ndarray) -> np.ndarray:
         """
         Decodes DPCM encoded samples
         :param samples: list of DPCM encoded samples
@@ -215,11 +213,14 @@ class DPCMCompressor:
         """
 
         # decoded samples
-        decoded_samples = np.zeros(samples.shape, dtype=np.int16)
+        decoded_samples = np.zeros(samples.shape, dtype=np.int8)
 
         # perform DPCM decoding
         accumulator = 0
-        for idx, diff in enumerate(samples):
+        for idx, quantized_diff in enumerate(samples):
+            # dequantize difference
+            diff = self.difference_mapping[quantized_diff]
+
             # add to accumulator
             accumulator = max(min(accumulator + diff, 2 ** 15 - 1), -2 ** 15)
 
@@ -228,30 +229,6 @@ class DPCMCompressor:
 
         # return decoded samples
         return decoded_samples
-
-    def compress(self, samples: np.ndarray) -> np.ndarray:
-        """
-        Compress samples using Differential Pulse Code Modulation
-        :param samples: audio samples
-        """
-
-        # encode and quantize
-        samples = self.encode(samples)
-        samples = (np.vectorize(self.quantize)(samples)).astype(np.uint8)
-
-        return samples
-
-    def decompress(self, samples: np.ndarray) -> np.ndarray:
-        """
-        Decompresses DPCM encoded samples
-        :param samples: dpcm samples
-        """
-
-        # dequantize and decode
-        samples = (np.vectorize(lambda x: self.difference_mapping[x])(samples))
-        samples = self.decode(samples)
-
-        return samples
 
     @staticmethod
     def _packing_format(sample_count: int) -> str:
@@ -280,7 +257,7 @@ class DPCMCompressor:
         # return format
         return fmt
 
-    def pack_dpcm(self, samples: list[int], parameters: dict[str, int]) -> bytes:
+    def pack_dpcm(self, samples: np.ndarray, parameters: dict[str, int]) -> bytes:
         """
         Packs DPCM encoded samples into bytes
         :param samples: dpcm encoded samples
@@ -453,7 +430,7 @@ class Application:
 
         # encode tracks
         for track_idx in range(parameters["nchannels"]):
-            tracks[track_idx] = self.compressor.encode(tracks[track_idx], sample_width=parameters["sampwidth"])
+            tracks[track_idx] = self.compressor.compress(tracks[track_idx], sample_width=parameters["sampwidth"])
 
         # merge multiple tracks
         merge_tracks(samples, tracks, parameters["nchannels"])
@@ -482,7 +459,7 @@ class Application:
 
         # decode tracks
         for track_idx in range(parameters["nchannels"]):
-            tracks[track_idx] = self.compressor.decode(tracks[track_idx], sample_width=parameters["sampwidth"])
+            tracks[track_idx] = self.compressor.decompress(tracks[track_idx], sample_width=parameters["sampwidth"])
 
         # merge multiple tracks
         merge_tracks(samples, tracks, parameters["nchannels"])
@@ -509,8 +486,8 @@ class Application:
 
         # encode & decode tracks (squeeze)
         for track_idx in range(parameters["nchannels"]):
-            tracks[track_idx] = self.compressor.encode(tracks[track_idx], sample_width=parameters["sampwidth"])
-            tracks[track_idx] = self.compressor.decode(tracks[track_idx], sample_width=parameters["sampwidth"])
+            tracks[track_idx] = self.compressor.compress(tracks[track_idx], sample_width=parameters["sampwidth"])
+            tracks[track_idx] = self.compressor.decompress(tracks[track_idx], sample_width=parameters["sampwidth"])
 
         # merge multiple tracks
         merge_tracks(samples, tracks, parameters["nchannels"])
@@ -523,43 +500,8 @@ class Application:
 
 
 def main():
-    # app = Application()
-    # app.run()
-
-    import matplotlib.pyplot as plt
-
-    plot_start = 32
-    plot_end = plot_start + 256
-
-    compressor = DPCMCompressor(4)
-
-    # read file
-    frames, parameters = read_wav_file("tests/rick_8.wav")
-
-    # unpack samples
-    samples = np.array(unpack_frames(frames, parameters), dtype=np.int16)
-
-    # idk why signed byte integers need that
-    if parameters["sampwidth"] == 1:
-        samples ^= 127
-
-    # plot original samples
-    plt.subplot(3, 1, 1)
-    plt.plot(samples[plot_start:plot_end])
-
-    samples = compressor.encode(samples)
-
-    # plot encoded samples
-    plt.subplot(3, 1, 2)
-    plt.plot(samples[plot_start:plot_end])
-
-    samples = compressor.decode(samples)
-
-    # plot decoded samples
-    plt.subplot(3, 1, 3)
-    plt.plot(samples[plot_start:plot_end])
-
-    plt.show()
+    app = Application()
+    app.run()
 
 
 if __name__ == '__main__':
