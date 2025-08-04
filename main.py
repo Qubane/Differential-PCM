@@ -488,36 +488,24 @@ class Application:
         Compresses and then decompresses the file, essentially just making quality worse
         """
 
-        # read file
-        frames, parameters = read_wav_file(self.parser_input_file)
+        # change output file
+        output_file = self.parser_output_file
+        self.parser_output_file = "temp.dpcm"
 
-        # unpack samples
-        samples = unpack_frames(frames, parameters)
+        # encode wav to dpcm
+        self.encode_wav()
 
-        # nuke the sample width to 8 bits
-        if parameters["sampwidth"] > 1:
-            if parameters["sampwidth"] == 2:
-                samples = (samples >> 8).astype(dtype=np.int8)
-            elif parameters["sampwidth"] == 3:
-                samples = (samples >> 16).astype(dtype=np.int8)
-            parameters["sampwidth"] = 1
+        # make input as temp file
+        self.parser_input_file = "temp.dpcm"
 
-        # split tracks
-        tracks = split_tracks(samples, parameters["nchannels"])
+        # change output path back
+        self.parser_output_file = output_file
 
-        # encode & decode tracks (squeeze)
-        for track_idx in range(parameters["nchannels"]):
-            tracks[track_idx] = self.compressor.compress(tracks[track_idx])
-            tracks[track_idx] = self.compressor.decompress(tracks[track_idx])
+        # decode dpcm into wav
+        self.decode_wav()
 
-        # merge multiple tracks
-        merge_tracks(samples, tracks, parameters["nchannels"])
-
-        # convert into frames
-        frames = pack_frames(samples, parameters)
-
-        # store into file
-        write_wav_file(self.parser_output_file, frames, parameters)
+        # delete temp file
+        os.remove("temp.dpcm")
 
 
 def main():
