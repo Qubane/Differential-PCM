@@ -413,6 +413,7 @@ class Application:
             self.parser_output_file = os.path.splitext(self.parser_output_file)[0] + ".dpcm"
             self.encode_wav()
         elif self.parser_mode == "decode_wav":
+            self.parser_output_file = os.path.splitext(self.parser_output_file)[0] + ".wav"
             self.decode_wav()
         elif self.parser_mode == "squeeze":
             self.squeeze()
