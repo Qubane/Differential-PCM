@@ -197,7 +197,7 @@ class DPCMCompressor:
         accumulator = 0
         for idx, sample in enumerate(samples):
             # calculate average sample
-            average_sample = (samples[idx] + samples[idx + 1]) / 2 if idx < len(samples) - 1 else samples[idx]
+            average_sample = (np.int16(samples[idx]) + samples[idx + 1]) / 2 if idx < len(samples) - 1 else samples[idx]
 
             # calculate difference
             diff = average_sample - accumulator
